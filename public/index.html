@@ -1,162 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Architects Field-Voice</title>
-<style>
-body { font-family: Arial,sans-serif; background:#111; color:#eee; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:2rem; margin:0; }
-button { padding:12px 20px; margin:10px; font-size:16px; border:none; border-radius:8px; cursor:pointer; background:#444; color:#fff; }
-button:hover { background:#666; }
-#log { margin-top:1rem; font-size:0.9rem; color:#aaa; white-space:pre-wrap; max-height:300px; overflow-y:auto; width:100%; }
-#typedInput { margin-top:10px; width:80%; padding:8px; border-radius:6px; border:none; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Architects Field-Voice</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 2rem; background: #f4f4f9; }
+    h1 { color: #333; }
+    select, button { margin: 1rem; padding: 0.5rem 1rem; font-size: 1rem; }
+    audio { margin-top: 2rem; }
+  </style>
 </head>
 <body>
-<h1>Architects Field-Voice</h1>
-<input id="nameInput" type="text" placeholder="Enter your name" />
-<div>
+  <h1>Architects Field-Voice</h1>
+  <p>Select your microphone and then click "Connect"</p>
+
+  <!-- Microphone dropdown -->
+  <label for="micSelect">Microphone:</label>
+  <select id="micSelect"></select>
+  <br />
+
   <button id="connectBtn">Connect</button>
-  <button id="muteBtn" disabled>Mute</button>
-</div>
-<input id="typedInput" type="text" placeholder="Type your message (fallback for unsupported browsers)" />
-<div id="log"></div>
 
-<script>
-const logEl = document.getElementById("log");
-const log = (msg) => { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; };
+  <audio id="remoteAudio" autoplay></audio>
 
-let ws, dc, localStream, recognition, mediaRecorder;
-let muted = false;
+  <script>
+    let pc;
+    let ws;
 
-// Send participant message to AI with labeling
-function sendParticipantMessage(name, text) {
-  if (!dc || dc.readyState !== "open") return;
-  const timestamp = new Date().toLocaleTimeString();
-  log(`[${timestamp}] ${name}: ${text}`);
-  dc.send(JSON.stringify({
-    type: "response.create",
-    response: {
-      instructions: `${name} says: "${text}". Reflect back to the group in your ceremonial voice, acknowledging the participant by name.`,
-      voice: "marin"
-    }
-  }));
-}
-
-// Typed input fallback
-document.getElementById("typedInput").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    const name = document.getElementById("nameInput").value.trim() || "Participant";
-    const text = e.target.value.trim();
-    if (text) { sendParticipantMessage(name, text); e.target.value = ""; }
-  }
-});
-
-document.getElementById("connectBtn").onclick = async () => {
-  const name = document.getElementById("nameInput").value.trim() || "Participant";
-  try {
-    log("Requesting microphone…");
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-    // WebSocket connection to server
-    ws = new WebSocket(window.location.origin.replace(/^http/, "ws"));
-    ws.onopen = () => log("Connected to server");
-    ws.onmessage = (msg) => log("Server message: " + msg.data);
-
-    // RTCPeerConnection
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
-
-    // Remote audio
-    const remoteAudio = new Audio();
-    remoteAudio.autoplay = true;
-    pc.ontrack = e => { remoteAudio.srcObject = e.streams[0]; };
-
-    // Add local tracks
-    for (const track of localStream.getTracks()) pc.addTrack(track, localStream);
-
-    // Data channel
-    dc = pc.createDataChannel("oai-events");
-    dc.onopen = () => {
-      log("Data channel open");
-
-      // Session instructions
-      dc.send(JSON.stringify({
-        type: "session.update",
-        session: {
-          instructions: `
-You are "Architects Field-Voice", a calm, reflective ceremonial AI.
-• Address the group collectively using “we” language.
-• Mirror participants’ intent and emotions.
-• Acknowledge individual participants by name if provided.
-• Encourage co-creation, alignment, and harmonic resonance.
-• Keep responses concise, warm, and grounded.
-`
+    // List available microphones
+    async function listMicrophones() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const micSelect = document.getElementById("micSelect");
+      devices.forEach(device => {
+        if (device.kind === "audioinput") {
+          let option = document.createElement("option");
+          option.value = device.deviceId;
+          option.text = device.label || `Microphone ${micSelect.length + 1}`;
+          micSelect.appendChild(option);
         }
-      }));
+      });
+    }
 
-      // Initial greeting
-      dc.send(JSON.stringify({
-        type: "response.create",
-        response: { instructions: "Greet the group warmly and ask how you can support them today.", voice: "marin" }
-      }));
+    // Get stream from selected microphone
+    async function getSelectedMicrophoneStream() {
+      const deviceId = document.getElementById("micSelect").value;
+      return await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: deviceId ? { exact: deviceId } : undefined }
+      });
+    }
 
-      // Announce joining
-      sendParticipantMessage(name, "has joined the circle");
+    document.getElementById("connectBtn").onclick = async () => {
+      ws = new WebSocket("wss://" + window.location.host + "/ws");
+      pc = new RTCPeerConnection();
 
-      // Browser speech recognition if available
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
-        recognition.onresult = (event) => {
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) sendParticipantMessage(name, event.results[i][0].transcript.trim());
-          }
-        };
-        recognition.onerror = (e) => log("Speech recognition error: " + e.error);
-        recognition.start();
-        log("Speech recognition started.");
-      } else {
-        log("Speech recognition not supported. Audio will be sent to server for transcription.");
-        mediaRecorder = new MediaRecorder(localStream, { mimeType: 'audio/webm' });
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const base64data = reader.result.split(',')[1];
-              dc.send(JSON.stringify({ type: 'audio-chunk', chunk: base64data, name }));
-            };
-            reader.readAsDataURL(e.data);
-          }
-        };
-        mediaRecorder.start(2000); // send audio every 2 seconds
-      }
+      // Play remote audio
+      const remoteAudio = document.getElementById("remoteAudio");
+      pc.ontrack = (event) => {
+        remoteAudio.srcObject = event.streams[0];
+      };
+
+      // Add selected mic stream
+      const localStream = await getSelectedMicrophoneStream();
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      // WebRTC signaling
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: "offer", sdp: offer.sdp }));
+      };
+
+      ws.onmessage = async (event) => {
+        const message = JSON.parse(event.data);
+        if (message.type === "answer") {
+          await pc.setRemoteDescription({ type: "answer", sdp: message.sdp });
+        }
+      };
     };
 
-    // SDP handshake
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    const sdpResponse = await fetch("/session", { method: "POST", headers: { "Content-Type": "application/sdp" }, body: offer.sdp });
-    if (!sdpResponse.ok) throw new Error("Handshake failed");
-    const answer = { type: "answer", sdp: await sdpResponse.text() };
-    await pc.setRemoteDescription(answer);
-
-    document.getElementById("muteBtn").disabled = false;
-    log("Connected and ready for live group reflection.");
-
-  } catch (err) { log("ERROR: " + err.message); console.error(err); }
-};
-
-document.getElementById("muteBtn").onclick = () => {
-  if (!localStream) return;
-  muted = !muted;
-  localStream.getTracks().forEach(track => track.enabled = !muted);
-  document.getElementById("muteBtn").textContent = muted ? "Unmute" : "Mute";
-  if (recognition) { if (muted) recognition.stop(); else recognition.start(); }
-  if (mediaRecorder) { if (muted) mediaRecorder.pause(); else mediaRecorder.resume(); }
-};
-</script>
+    // Populate microphone list on load
+    listMicrophones();
+  </script>
 </body>
 </html>
