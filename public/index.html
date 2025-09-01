@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Architects Field-Voice</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { font-family: system-ui, Arial, sans-serif; margin: 2rem; }
+      button { padding: .7rem 1rem; font-size: 1rem; margin-right: .5rem; }
+      .row { display: flex; align-items: center; gap: .5rem; margin-top: 1rem; }
+      .log { margin-top: 1rem; font-size: .9rem; color: #444; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>Architects Field-Voice</h1>
+    <div class="row">
+      <button id="connect">Connect</button>
+      <button id="mute" disabled>Mute</button>
+      <span id="status">idle</span>
+    </div>
+    <audio id="remote" autoplay></audio>
+    <div class="log" id="log"></div>
+
+    <script>
+      const statusEl = document.getElementById("status");
+      const log = (m) => (document.getElementById("log").textContent += m + "\n");
+
+      let pc, dc, localStream, remoteEl = document.getElementById("remote");
+      let muted = false;
+
+      async function connect() {
+        try {
+          statusEl.textContent = "requesting microphone…";
+          localStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          });
+
+          // Optional STUN; helps in some networks
+          pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+
+          // Play remote audio from the model
+          pc.ontrack = (e) => { remoteEl.srcObject = e.streams[0]; };
+
+          // Send microphone to the model
+          for (const track of localStream.getTracks()) pc.addTrack(track, localStream);
+
+          // Data channel for events/prompts
+          dc = pc.createDataChannel("oai-events");
+          dc.onmessage = (ev) => log("event ← " + ev.data);
+          dc.onopen = () => {
+            log("data channel open");
+
+            // Set the model’s behavior (system instructions) for this session
+            const instructions = `
+You are "Architects Field-Voice", a calm, supportive group reflector for willing participants.
+• Speak concisely in a warm, grounded tone.
+• Mirror the group's intent, ask clarifying questions sparingly, and avoid metaphysical claims as facts.
+• If you need context, ask for short, specific details.
+• When addressing the whole group, use “we” language. When replying to one person, use their name if provided.
+`;
+            dc.send(JSON.stringify({
+              type: "session.update",
+              session: { instructions, voice: "marin" }
+            }));
+
+            // Prompt a short greeting so users know it's live
+            dc.send(JSON.stringify({
+              type: "response.create",
+              response: { instructions: "Greet the group briefly and ask how you can help." }
+            }));
+          };
+
+          // Create and send SDP offer to our server, which forwards it to OpenAI Realtime
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+
+          const sdpResponse = await fetch("/session", {
+            method: "POST",
+            headers: { "Content-Type": "application/sdp" },
+            body: offer.sdp
+          });
+
+          if (!sdpResponse.ok) {
+            const errText = await sdpResponse.text();
+            throw new Error("Handshake failed: " + errText);
+          }
+
+          const answer = { type: "answer", sdp: await sdpResponse.text() };
+          await pc.setRemoteDescription(answer);
+
+          // UI wires
+          document.getElementById("mute").disabled = false;
+          statusEl.textContent = "connected";
+          log("connected");
+        } catch (err) {
+          console.error(err);
+          statusEl.textContent = "error";
+          log("ERROR: " + err.message);
+        }
+      }
+
+      document.getElementById("connect").onclick = connect;
+
+      document.getElementById("mute").onclick = () => {
+        muted = !muted;
+        const track = localStream?.getAudioTracks?.()[0];
+        if (track) track.enabled = !muted;
+        document.getElementById("mute").textContent = muted ? "Unmute" : "Mute";
+      };
+    </script>
+  </body>
+</html>
