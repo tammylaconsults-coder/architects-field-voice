@@ -1,45 +1,51 @@
-import express from "express";
-import path from "path";
-import { fileURLToPath } from "url";
+const WebSocket = require('ws');
+const fs = require('fs');
+const { OpenAI } = require('@openai/openai');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('ffmpeg-static');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+ffmpeg.setFfmpegPath(ffmpegPath);
 
-const app = express();
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const wss = new WebSocket.Server({ port: process.env.PORT || 8080 });
 
-// Serve the static frontend
-app.use(express.static(path.join(__dirname, "public")));
+wss.on('connection', (ws) => {
+  console.log('Client connected');
 
-// The Realtime API expects SDP in/out
-app.use("/session", express.text({ type: "application/sdp" }));
+  ws.on('message', async (message) => {
+    const data = JSON.parse(message);
 
-app.post("/session", async (req, res) => {
-  try {
-    const r = await fetch(
-      // Current GA realtime model; you can switch voice to "cedar", "alloy", etc.
-      "https://api.openai.com/v1/realtime?model=gpt-realtime&voice=marin",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/sdp",
-          "OpenAI-Beta": "realtime=v1"
-        },
-        body: req.body
-      }
-    );
+    if (data.type === 'response.create') {
+      // Forward directly to OpenAI Realtime session (existing AI logic)
+      ws.send(JSON.stringify({ type: 'log', message: 'Forwarding AI response…' }));
+    }
 
-    const sdp = await r.text();
-    res.status(r.status);
-    res.setHeader("Content-Type", "application/sdp");
-    res.send(sdp);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send(String(err));
-  }
+    if (data.type === 'audio-chunk') {
+      const filename = `temp_${Date.now()}.webm`;
+      const buffer = Buffer.from(data.chunk, 'base64');
+      fs.writeFileSync(filename, buffer);
+      const wavFile = `temp_${Date.now()}.wav`;
+
+      ffmpeg(filename)
+        .output(wavFile)
+        .on('end', async () => {
+          const transcription = await openai.audio.transcriptions.create({
+            file: fs.createReadStream(wavFile),
+            model: 'whisper-1'
+          });
+
+          const participantName = data.name || 'Participant';
+          const text = transcription.text.trim();
+
+          ws.send(JSON.stringify({
+            type: 'response.create',
+            response: { instructions: `${participantName} says: "${text}". Reflect back to the group in your ceremonial voice.`, voice: 'marin' }
+          }));
+
+          fs.unlinkSync(filename);
+          fs.unlinkSync(wavFile);
+        })
+        .run();
+    }
+  });
 });
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`Architects Field-Voice listening on http://localhost:${PORT}`)
-);
