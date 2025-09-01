@@ -10,7 +10,7 @@
     "node": "18.x"
   },
   "dependencies": {
-    "@openai/openai": "^4.2.1",
+    "openai": "^4.9.0",
     "ws": "^8.13.0",
     "ffmpeg-static": "^5.1.0",
     "fluent-ffmpeg": "^2.1.2",
