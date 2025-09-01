@@ -29,24 +29,26 @@ const log = (msg) => { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.
 let ws, dc, localStream, recognition;
 let muted = false;
 
-// Helper: send participant message to AI
+// Send participant message to AI with labeling
 function sendParticipantMessage(name, text) {
   if (!dc || dc.readyState !== "open") return;
+  const timestamp = new Date().toLocaleTimeString();
+  log(`[${timestamp}] ${name}: ${text}`);
   dc.send(JSON.stringify({
     type: "response.create",
     response: {
-      instructions: `${name} says: "${text}". Reflect back to the group in your ceremonial voice.`,
+      instructions: `${name} says: "${text}". Reflect back to the group in your ceremonial voice, acknowledging the participant by name.`,
       voice: "marin"
     }
   }));
 }
 
+// Typed input fallback for unsupported browsers
 document.getElementById("typedInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     const name = document.getElementById("nameInput").value.trim() || "Participant";
     const text = e.target.value.trim();
     if (text) {
-      log(`${name} (typed): ${text}`);
       sendParticipantMessage(name, text);
       e.target.value = "";
     }
@@ -55,7 +57,6 @@ document.getElementById("typedInput").addEventListener("keydown", (e) => {
 
 document.getElementById("connectBtn").onclick = async () => {
   const name = document.getElementById("nameInput").value.trim() || "Participant";
-
   try {
     log("Requesting microphone…");
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -81,7 +82,7 @@ document.getElementById("connectBtn").onclick = async () => {
     dc.onopen = () => {
       log("Data channel open");
 
-      // Session instructions
+      // Session instructions for ceremonial reflection
       dc.send(JSON.stringify({
         type: "session.update",
         session: {
@@ -120,7 +121,6 @@ You are "Architects Field-Voice", a calm, reflective ceremonial AI.
           for (let i = event.resultIndex; i < event.results.length; i++) {
             if (event.results[i].isFinal) {
               const text = event.results[i][0].transcript.trim();
-              log(`${name}: ${text}`);
               sendParticipantMessage(name, text);
             }
           }
@@ -147,25 +147,4 @@ You are "Architects Field-Voice", a calm, reflective ceremonial AI.
     await pc.setRemoteDescription(answer);
 
     document.getElementById("muteBtn").disabled = false;
-    log("Connected and ready for live group reflection.");
-
-  } catch (err) {
-    log("ERROR: " + err.message);
-    console.error(err);
-  }
-};
-
-document.getElementById("muteBtn").onclick = () => {
-  if (!localStream) return;
-  muted = !muted;
-  localStream.getTracks().forEach(track => track.enabled = !muted);
-  document.getElementById("muteBtn").textContent = muted ? "Unmute" : "Mute";
-
-  if (recognition) {
-    if (muted) recognition.stop();
-    else recognition.start();
-  }
-};
-</script>
-</body>
-</html>
+    log("Connected and ready for live group
