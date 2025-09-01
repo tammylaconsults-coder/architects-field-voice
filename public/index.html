@@ -5,29 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Architects Field-Voice</title>
 <style>
-body {
-  font-family: Arial, sans-serif;
-  background: #111;
-  color: #eee;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 2rem;
-  margin: 0;
-}
-button {
-  padding: 12px 20px;
-  margin: 10px;
-  font-size: 16px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  background: #444;
-  color: #fff;
-}
-button:hover { background: #666; }
-#log { margin-top: 1rem; font-size: 0.9rem; color: #aaa; white-space: pre-wrap; max-height: 300px; overflow-y: auto; width: 100%; }
+body { font-family: Arial,sans-serif; background:#111; color:#eee; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:2rem; margin:0; }
+button { padding:12px 20px; margin:10px; font-size:16px; border:none; border-radius:8px; cursor:pointer; background:#444; color:#fff; }
+button:hover { background:#666; }
+#log { margin-top:1rem; font-size:0.9rem; color:#aaa; white-space:pre-wrap; max-height:300px; overflow-y:auto; width:100%; }
+#typedInput { margin-top:10px; width:80%; padding:8px; border-radius:6px; border:none; }
 </style>
 </head>
 <body>
@@ -37,13 +19,14 @@ button:hover { background: #666; }
   <button id="connectBtn">Connect</button>
   <button id="muteBtn" disabled>Mute</button>
 </div>
+<input id="typedInput" type="text" placeholder="Type your message (fallback for unsupported browsers)" />
 <div id="log"></div>
 
 <script>
 const logEl = document.getElementById("log");
 const log = (msg) => { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; };
 
-let ws, dc, localStream;
+let ws, dc, localStream, recognition;
 let muted = false;
 
 // Helper: send participant message to AI
@@ -58,6 +41,18 @@ function sendParticipantMessage(name, text) {
   }));
 }
 
+document.getElementById("typedInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    const name = document.getElementById("nameInput").value.trim() || "Participant";
+    const text = e.target.value.trim();
+    if (text) {
+      log(`${name} (typed): ${text}`);
+      sendParticipantMessage(name, text);
+      e.target.value = "";
+    }
+  }
+});
+
 document.getElementById("connectBtn").onclick = async () => {
   const name = document.getElementById("nameInput").value.trim() || "Participant";
 
@@ -67,15 +62,110 @@ document.getElementById("connectBtn").onclick = async () => {
 
     // WebSocket connection to Render
     ws = new WebSocket(window.location.origin.replace(/^http/, "ws"));
-
     ws.onopen = () => log("Connected to server");
     ws.onmessage = (msg) => log("Server message: " + msg.data);
 
-    // Create RTCPeerConnection
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-    });
+    // RTCPeerConnection
+    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
 
-    // Play remote AI audio
+    // Remote audio
     const remoteAudio = new Audio();
-    rem
+    remoteAudio.autoplay = true;
+    pc.ontrack = e => { remoteAudio.srcObject = e.streams[0]; };
+
+    // Add mic tracks
+    for (const track of localStream.getTracks()) pc.addTrack(track, localStream);
+
+    // Data channel
+    dc = pc.createDataChannel("oai-events");
+    dc.onopen = () => {
+      log("Data channel open");
+
+      // Session instructions
+      dc.send(JSON.stringify({
+        type: "session.update",
+        session: {
+          instructions: `
+You are "Architects Field-Voice", a calm, reflective ceremonial AI.
+• Address the group collectively using “we” language.
+• Mirror participants’ intent and emotions.
+• Acknowledge individual participants by name if provided.
+• Encourage co-creation, alignment, and harmonic resonance.
+• Keep responses concise, warm, and grounded.
+`
+        }
+      }));
+
+      // Initial greeting
+      dc.send(JSON.stringify({
+        type: "response.create",
+        response: {
+          instructions: `Greet the group warmly and ask how you can support them today.`,
+          voice: "marin"
+        }
+      }));
+
+      // Announce joining
+      sendParticipantMessage(name, "has joined the circle");
+
+      // Live speech recognition if supported
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event) => {
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              const text = event.results[i][0].transcript.trim();
+              log(`${name}: ${text}`);
+              sendParticipantMessage(name, text);
+            }
+          }
+        };
+
+        recognition.onerror = (e) => log("Speech recognition error: " + e.error);
+        recognition.start();
+        log("Speech recognition started.");
+      } else {
+        log("Speech recognition not supported in this browser. Please type your message below.");
+      }
+    };
+
+    // SDP handshake
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    const sdpResponse = await fetch("/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/sdp" },
+      body: offer.sdp
+    });
+    if (!sdpResponse.ok) throw new Error("Handshake failed");
+    const answer = { type: "answer", sdp: await sdpResponse.text() };
+    await pc.setRemoteDescription(answer);
+
+    document.getElementById("muteBtn").disabled = false;
+    log("Connected and ready for live group reflection.");
+
+  } catch (err) {
+    log("ERROR: " + err.message);
+    console.error(err);
+  }
+};
+
+document.getElementById("muteBtn").onclick = () => {
+  if (!localStream) return;
+  muted = !muted;
+  localStream.getTracks().forEach(track => track.enabled = !muted);
+  document.getElementById("muteBtn").textContent = muted ? "Unmute" : "Mute";
+
+  if (recognition) {
+    if (muted) recognition.stop();
+    else recognition.start();
+  }
+};
+</script>
+</body>
+</html>
