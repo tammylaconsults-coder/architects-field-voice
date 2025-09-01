@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 const fs = require('fs');
-const { OpenAI } = require('@openai/openai');
+const OpenAI = require('openai');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 
