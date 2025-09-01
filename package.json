@@ -1,15 +1,19 @@
 {
   "name": "architects-field-voice",
   "version": "1.0.0",
-  "private": true,
-  "type": "module",
+  "description": "Live ceremonial AI circle with cross-browser support, Whisper transcription, and labeled AI responses.",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "engines": {
-    "node": ">=18.17"
+    "node": "18.x"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "@openai/openai": "^4.2.1",
+    "ws": "^8.13.0",
+    "ffmpeg-static": "^5.1.0",
+    "fluent-ffmpeg": "^2.1.2",
+    "node-fetch": "^3.4.1"
   }
 }
