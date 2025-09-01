@@ -1,132 +1,81 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Architects Field-Voice</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #111;
-      color: #eee;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-    }
-    button {
-      padding: 12px 20px;
-      margin: 10px;
-      font-size: 16px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      background: #444;
-      color: #fff;
-    }
-    button:hover { background: #666; }
-    #log { margin-top: 1rem; font-size: 0.9rem; color: #aaa; white-space: pre-wrap; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Architects Field-Voice</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #111;
+  color: #eee;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 2rem;
+  margin: 0;
+}
+button {
+  padding: 12px 20px;
+  margin: 10px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #444;
+  color: #fff;
+}
+button:hover { background: #666; }
+#log { margin-top: 1rem; font-size: 0.9rem; color: #aaa; white-space: pre-wrap; max-height: 300px; overflow-y: auto; width: 100%; }
+</style>
 </head>
 <body>
-  <h1>Architects Field-Voice</h1>
+<h1>Architects Field-Voice</h1>
+<input id="nameInput" type="text" placeholder="Enter your name" />
+<div>
   <button id="connectBtn">Connect</button>
-  <button id="muteBtn">Mute</button>
-  <div id="log"></div>
+  <button id="muteBtn" disabled>Mute</button>
+</div>
+<div id="log"></div>
 
-  <script>
-    const logEl = document.getElementById("log");
-    const log = (msg) => logEl.textContent += msg + "\n";
+<script>
+const logEl = document.getElementById("log");
+const log = (msg) => { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; };
 
-    let ws, dc, localStream;
-    let muted = false;
+let ws, dc, localStream;
+let muted = false;
 
-    document.getElementById("connectBtn").onclick = async () => {
-      try {
-        log("Requesting microphone…");
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+// Helper: send participant message to AI
+function sendParticipantMessage(name, text) {
+  if (!dc || dc.readyState !== "open") return;
+  dc.send(JSON.stringify({
+    type: "response.create",
+    response: {
+      instructions: `${name} says: "${text}". Reflect back to the group in your ceremonial voice.`,
+      voice: "marin"
+    }
+  }));
+}
 
-        // Connect WebSocket to Render-hosted server
-        ws = new WebSocket(window.location.origin.replace(/^http/, "ws"));
-        ws.onopen = () => log("Connected to server");
+document.getElementById("connectBtn").onclick = async () => {
+  const name = document.getElementById("nameInput").value.trim() || "Participant";
 
-        ws.onmessage = async (msg) => {
-          log("Server message: " + msg.data);
-        };
+  try {
+    log("Requesting microphone…");
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-        // Create RTCPeerConnection
-        const pc = new RTCPeerConnection({
-          iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-        });
+    // WebSocket connection to Render
+    ws = new WebSocket(window.location.origin.replace(/^http/, "ws"));
 
-        // Play remote audio
-        const remoteAudio = new Audio();
-        remoteAudio.autoplay = true;
-        pc.ontrack = e => { remoteAudio.srcObject = e.streams[0]; };
+    ws.onopen = () => log("Connected to server");
+    ws.onmessage = (msg) => log("Server message: " + msg.data);
 
-        // Add mic tracks
-        for (const track of localStream.getTracks()) pc.addTrack(track, localStream);
+    // Create RTCPeerConnection
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    });
 
-        // Create data channel for instructions
-        dc = pc.createDataChannel("oai-events");
-        dc.onopen = () => {
-          log("Data channel open");
-
-          // 🔹 Send ceremonial instructions
-          dc.send(JSON.stringify({
-            type: "session.update",
-            session: {
-              instructions: `
-You are "Architects Field-Voice", a calm, reflective, ceremonial voice.
-• Speak in a warm, grounded tone.
-• Address the group collectively using “we” language.
-• Encourage participation and reflection.
-`
-            }
-          }));
-
-          // 🔹 Initial greeting
-          dc.send(JSON.stringify({
-            type: "response.create",
-            response: {
-              instructions: "Greet the group and ask how you can help them today.",
-              voice: "marin"
-            }
-          }));
-        };
-
-        // SDP handshake with server
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        const sdpResponse = await fetch("/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/sdp" },
-          body: offer.sdp
-        });
-
-        if (!sdpResponse.ok) throw new Error("Handshake failed");
-
-        const answer = { type: "answer", sdp: await sdpResponse.text() };
-        await pc.setRemoteDescription(answer);
-
-        document.getElementById("muteBtn").disabled = false;
-        log("Connected and ready.");
-
-      } catch (err) {
-        log("ERROR: " + err.message);
-        console.error(err);
-      }
-    };
-
-    document.getElementById("muteBtn").onclick = () => {
-      if (!localStream) return;
-      muted = !muted;
-      localStream.getTracks().forEach(track => track.enabled = !muted);
-      document.getElementById("muteBtn").textContent = muted ? "Unmute" : "Mute";
-    };
-  </script>
-</body>
-</html>
+    // Play remote AI audio
+    const remoteAudio = new Audio();
+    rem
