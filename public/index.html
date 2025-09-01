@@ -26,7 +26,7 @@ button:hover { background:#666; }
 const logEl = document.getElementById("log");
 const log = (msg) => { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; };
 
-let ws, dc, localStream, recognition;
+let ws, dc, localStream, recognition, mediaRecorder;
 let muted = false;
 
 // Send participant message to AI with labeling
@@ -43,15 +43,12 @@ function sendParticipantMessage(name, text) {
   }));
 }
 
-// Typed input fallback for unsupported browsers
+// Typed input fallback
 document.getElementById("typedInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     const name = document.getElementById("nameInput").value.trim() || "Participant";
     const text = e.target.value.trim();
-    if (text) {
-      sendParticipantMessage(name, text);
-      e.target.value = "";
-    }
+    if (text) { sendParticipantMessage(name, text); e.target.value = ""; }
   }
 });
 
@@ -61,7 +58,7 @@ document.getElementById("connectBtn").onclick = async () => {
     log("Requesting microphone…");
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    // WebSocket connection to Render
+    // WebSocket connection to server
     ws = new WebSocket(window.location.origin.replace(/^http/, "ws"));
     ws.onopen = () => log("Connected to server");
     ws.onmessage = (msg) => log("Server message: " + msg.data);
@@ -74,7 +71,7 @@ document.getElementById("connectBtn").onclick = async () => {
     remoteAudio.autoplay = true;
     pc.ontrack = e => { remoteAudio.srcObject = e.streams[0]; };
 
-    // Add mic tracks
+    // Add local tracks
     for (const track of localStream.getTracks()) pc.addTrack(track, localStream);
 
     // Data channel
@@ -82,7 +79,7 @@ document.getElementById("connectBtn").onclick = async () => {
     dc.onopen = () => {
       log("Data channel open");
 
-      // Session instructions for ceremonial reflection
+      // Session instructions
       dc.send(JSON.stringify({
         type: "session.update",
         session: {
@@ -100,51 +97,66 @@ You are "Architects Field-Voice", a calm, reflective ceremonial AI.
       // Initial greeting
       dc.send(JSON.stringify({
         type: "response.create",
-        response: {
-          instructions: `Greet the group warmly and ask how you can support them today.`,
-          voice: "marin"
-        }
+        response: { instructions: "Greet the group warmly and ask how you can support them today.", voice: "marin" }
       }));
 
       // Announce joining
       sendParticipantMessage(name, "has joined the circle");
 
-      // Live speech recognition if supported
+      // Browser speech recognition if available
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
         recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = false;
         recognition.lang = 'en-US';
-
         recognition.onresult = (event) => {
           for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) {
-              const text = event.results[i][0].transcript.trim();
-              sendParticipantMessage(name, text);
-            }
+            if (event.results[i].isFinal) sendParticipantMessage(name, event.results[i][0].transcript.trim());
           }
         };
-
         recognition.onerror = (e) => log("Speech recognition error: " + e.error);
         recognition.start();
         log("Speech recognition started.");
       } else {
-        log("Speech recognition not supported in this browser. Please type your message below.");
+        log("Speech recognition not supported. Audio will be sent to server for transcription.");
+        mediaRecorder = new MediaRecorder(localStream, { mimeType: 'audio/webm' });
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64data = reader.result.split(',')[1];
+              dc.send(JSON.stringify({ type: 'audio-chunk', chunk: base64data, name }));
+            };
+            reader.readAsDataURL(e.data);
+          }
+        };
+        mediaRecorder.start(2000); // send audio every 2 seconds
       }
     };
 
     // SDP handshake
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    const sdpResponse = await fetch("/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/sdp" },
-      body: offer.sdp
-    });
+    const sdpResponse = await fetch("/session", { method: "POST", headers: { "Content-Type": "application/sdp" }, body: offer.sdp });
     if (!sdpResponse.ok) throw new Error("Handshake failed");
     const answer = { type: "answer", sdp: await sdpResponse.text() };
     await pc.setRemoteDescription(answer);
 
     document.getElementById("muteBtn").disabled = false;
-    log("Connected and ready for live group
+    log("Connected and ready for live group reflection.");
+
+  } catch (err) { log("ERROR: " + err.message); console.error(err); }
+};
+
+document.getElementById("muteBtn").onclick = () => {
+  if (!localStream) return;
+  muted = !muted;
+  localStream.getTracks().forEach(track => track.enabled = !muted);
+  document.getElementById("muteBtn").textContent = muted ? "Unmute" : "Mute";
+  if (recognition) { if (muted) recognition.stop(); else recognition.start(); }
+  if (mediaRecorder) { if (muted) mediaRecorder.pause(); else mediaRecorder.resume(); }
+};
+</script>
+</body>
+</html>
