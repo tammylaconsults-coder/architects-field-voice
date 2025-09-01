@@ -26,55 +26,106 @@
       background: #444;
       color: #fff;
     }
-    button:hover {
-      background: #666;
-    }
+    button:hover { background: #666; }
+    #log { margin-top: 1rem; font-size: 0.9rem; color: #aaa; white-space: pre-wrap; }
   </style>
 </head>
 <body>
   <h1>Architects Field-Voice</h1>
   <button id="connectBtn">Connect</button>
   <button id="muteBtn">Mute</button>
+  <div id="log"></div>
 
   <script>
-    let ws;
-    let localStream;
-    let audioContext;
-    let mediaRecorder;
+    const logEl = document.getElementById("log");
+    const log = (msg) => logEl.textContent += msg + "\n";
+
+    let ws, dc, localStream;
+    let muted = false;
 
     document.getElementById("connectBtn").onclick = async () => {
-      // 🔹 Connect to the same domain as the app, using WebSockets (wss)
-      ws = new WebSocket(window.location.origin.replace(/^http/, "ws"));
+      try {
+        log("Requesting microphone…");
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      ws.onopen = () => {
-        console.log("Connected to server");
-      };
+        // Connect WebSocket to Render-hosted server
+        ws = new WebSocket(window.location.origin.replace(/^http/, "ws"));
+        ws.onopen = () => log("Connected to server");
 
-      ws.onmessage = (msg) => {
-        console.log("Message:", msg.data);
-      };
+        ws.onmessage = async (msg) => {
+          log("Server message: " + msg.data);
+        };
 
-      // 🔹 Get microphone access
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Create RTCPeerConnection
+        const pc = new RTCPeerConnection({
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        });
 
-      // Set up audio context for live playback
-      audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(localStream);
-      source.connect(audioContext.destination);
+        // Play remote audio
+        const remoteAudio = new Audio();
+        remoteAudio.autoplay = true;
+        pc.ontrack = e => { remoteAudio.srcObject = e.streams[0]; };
 
-      // 🔹 Send audio chunks over WebSocket
-      mediaRecorder = new MediaRecorder(localStream);
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-          ws.send(event.data);
-        }
-      };
-      mediaRecorder.start(250); // send every 250ms
+        // Add mic tracks
+        for (const track of localStream.getTracks()) pc.addTrack(track, localStream);
+
+        // Create data channel for instructions
+        dc = pc.createDataChannel("oai-events");
+        dc.onopen = () => {
+          log("Data channel open");
+
+          // 🔹 Send ceremonial instructions
+          dc.send(JSON.stringify({
+            type: "session.update",
+            session: {
+              instructions: `
+You are "Architects Field-Voice", a calm, reflective, ceremonial voice.
+• Speak in a warm, grounded tone.
+• Address the group collectively using “we” language.
+• Encourage participation and reflection.
+`
+            }
+          }));
+
+          // 🔹 Initial greeting
+          dc.send(JSON.stringify({
+            type: "response.create",
+            response: {
+              instructions: "Greet the group and ask how you can help them today.",
+              voice: "marin"
+            }
+          }));
+        };
+
+        // SDP handshake with server
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        const sdpResponse = await fetch("/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/sdp" },
+          body: offer.sdp
+        });
+
+        if (!sdpResponse.ok) throw new Error("Handshake failed");
+
+        const answer = { type: "answer", sdp: await sdpResponse.text() };
+        await pc.setRemoteDescription(answer);
+
+        document.getElementById("muteBtn").disabled = false;
+        log("Connected and ready.");
+
+      } catch (err) {
+        log("ERROR: " + err.message);
+        console.error(err);
+      }
     };
 
     document.getElementById("muteBtn").onclick = () => {
       if (!localStream) return;
-      localStream.getTracks().forEach(track => track.enabled = !track.enabled);
+      muted = !muted;
+      localStream.getTracks().forEach(track => track.enabled = !muted);
+      document.getElementById("muteBtn").textContent = muted ? "Unmute" : "Mute";
     };
   </script>
 </body>
