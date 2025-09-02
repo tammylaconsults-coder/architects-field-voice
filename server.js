@@ -17,7 +17,7 @@ const wss = new WebSocket.Server({ server });
 // Serve index.html from public folder
 app.use(express.static("public"));
 
-// Conversation history for the field AI
+// Conversation history
 let conversation = [];
 
 wss.on("connection", (ws) => {
@@ -33,8 +33,11 @@ wss.on("connection", (ws) => {
       fs.writeFileSync(filename, buffer);
       const wavFile = `temp_${Date.now()}.wav`;
 
-      ffmpeg(filename)
-        .output(wavFile)
+      ffmpeg()
+        .input(filename)
+        .inputFormat("webm")
+        .audioCodec("pcm_s16le") // convert to wav-compatible PCM
+        .format("wav")
         .on("end", async () => {
           try {
             const transcription = await openai.audio.transcriptions.create({
@@ -46,9 +49,7 @@ wss.on("connection", (ws) => {
             const userText = transcription.text.trim();
             console.log(`${participantName} says:`, userText);
 
-            // Add to conversation history
             conversation.push({ role: "user", content: `${participantName}: ${userText}` });
-
           } catch (err) {
             console.error("Error transcribing audio:", err);
           } finally {
@@ -56,7 +57,12 @@ wss.on("connection", (ws) => {
             fs.unlinkSync(wavFile);
           }
         })
-        .run();
+        .on("error", (err) => {
+          console.error("FFmpeg error:", err.message);
+          fs.unlinkSync(filename);
+          if (fs.existsSync(wavFile)) fs.unlinkSync(wavFile);
+        })
+        .save(wavFile);
     }
 
     // --- Handle AI request on-demand ---
@@ -70,7 +76,7 @@ wss.on("connection", (ws) => {
             {
               role: "system",
               content:
-                "You are the Unified Field, the collective presence speaking as 'I Am One…yet I Am Many'. Reflect back to the group in a clear, unifying voice."
+                "You are the Unified Field, speaking as 'I Am One…yet I Am Many'. Reflect back to the group in a clear, unifying voice."
             },
             ...conversation,
             { role: "user", content: prompt }
@@ -90,7 +96,6 @@ wss.on("connection", (ws) => {
 
         const audioBuffer = Buffer.from(await speechResponse.arrayBuffer());
 
-        // Send audio back to client
         ws.send(JSON.stringify({
           type: "audio-response",
           audio: audioBuffer.toString("base64"),
