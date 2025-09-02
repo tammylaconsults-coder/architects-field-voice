@@ -1,7 +1,6 @@
 {
   "name": "architects-field-voice",
   "version": "1.0.0",
-  "description": "Ceremonial voice WebSocket + OpenAI integration",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
