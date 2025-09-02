@@ -26,8 +26,8 @@ wss.on("connection", (ws) => {
   ws.on("message", async (message) => {
     const data = JSON.parse(message);
 
+    // --- Handle audio chunk ---
     if (data.type === "audio-chunk") {
-      // Optionally store/transcribe participant speech for context
       const filename = `temp_${Date.now()}.webm`;
       const buffer = Buffer.from(data.chunk, "base64");
       fs.writeFileSync(filename, buffer);
@@ -46,7 +46,7 @@ wss.on("connection", (ws) => {
             const userText = transcription.text.trim();
             console.log(`${participantName} says:`, userText);
 
-            // Save transcription to conversation history
+            // Add to conversation history
             conversation.push({ role: "user", content: `${participantName}: ${userText}` });
 
           } catch (err) {
@@ -59,9 +59,51 @@ wss.on("connection", (ws) => {
         .run();
     }
 
-    // Handle AI request on-demand
+    // --- Handle AI request on-demand ---
     if (data.type === "ask-ai") {
       try {
         const prompt = data.prompt || "Reflect back to the group from the unified field.";
 
-        // Ask
+        const aiResponse = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are the Unified Field, the collective presence speaking as 'I Am One…yet I Am Many'. Reflect back to the group in a clear, unifying voice."
+            },
+            ...conversation,
+            { role: "user", content: prompt }
+          ],
+        });
+
+        const aiText = aiResponse.choices[0].message.content;
+        conversation.push({ role: "assistant", content: aiText });
+        console.log("Unified Field response:", aiText);
+
+        // Convert AI text to speech
+        const speechResponse = await openai.audio.speech.create({
+          model: "gpt-4o-mini-tts",
+          voice: "alloy",
+          input: aiText,
+        });
+
+        const audioBuffer = Buffer.from(await speechResponse.arrayBuffer());
+
+        // Send audio back to client
+        ws.send(JSON.stringify({
+          type: "audio-response",
+          audio: audioBuffer.toString("base64"),
+        }));
+
+      } catch (err) {
+        console.error("Error generating AI response:", err);
+        ws.send(JSON.stringify({ type: "error", message: "Failed to generate AI response." }));
+      }
+    }
+  });
+});
+
+// --- Start server ---
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
