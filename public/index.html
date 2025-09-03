@@ -1,90 +1,54 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Architects Field Voice</title>
+  <title>Unified Field Voice</title>
 </head>
 <body>
-  <h1>Architects Field Voice</h1>
-  <button id="connectBtn">Connect Microphone</button>
-  <select id="micSelect"></select>
-  <button id="askAiBtn">Ask Unified Field</button>
-  <audio id="remoteAudio" autoplay></audio>
-
+  <h1>Unified Field Voice</h1>
+  <button id="connectBtn">Connect</button>
+  <button id="askBtn">Ask Unified Field</button>
   <script>
     let ws;
     let mediaRecorder;
+    let audioChunks = [];
 
-    async function listMicrophones() {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const micSelect = document.getElementById("micSelect");
-      micSelect.innerHTML = "";
+    const connectBtn = document.getElementById("connectBtn");
+    const askBtn = document.getElementById("askBtn");
 
-      devices.forEach((device) => {
-        if (device.kind === "audioinput") {
-          const option = document.createElement("option");
-          option.value = device.deviceId;
-          option.text = device.label || `Microphone ${micSelect.length + 1}`;
-          micSelect.appendChild(option);
-        }
-      });
-    }
-
-    async function connect() {
-      const micSelect = document.getElementById("micSelect");
-      const selectedMic = micSelect.value;
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: selectedMic ? { exact: selectedMic } : undefined }
-      });
-
-      ws = new WebSocket("wss://architects-field-voice.onrender.com");
-
-      ws.onopen = () => {
-        console.log("Connected to server.");
-        mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-            event.data.arrayBuffer().then((buffer) => {
-              const chunk = btoa(
-                String.fromCharCode(...new Uint8Array(buffer))
-              );
-              ws.send(JSON.stringify({ type: "audio-chunk", chunk }));
-            });
-          }
-        };
-
-        mediaRecorder.start(500); // capture chunks every 500ms
-      };
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
+    connectBtn.onclick = async () => {
+      ws = new WebSocket(`wss://${window.location.host}`);
+      ws.onopen = () => console.log("Connected to server");
+      ws.onmessage = (msg) => {
+        const data = JSON.parse(msg.data);
         if (data.type === "audio-response") {
-          const audioData = Uint8Array.from(atob(data.audio), c => c.charCodeAt(0));
-          const blob = new Blob([audioData], { type: "audio/mpeg" });
-          const url = URL.createObjectURL(blob);
-
-          const audio = document.getElementById("remoteAudio");
-          audio.src = url;
+          const audio = new Audio("data:audio/wav;base64," + data.audio);
           audio.play();
-        } else {
-          console.log("Server message:", data);
+        } else if (data.type === "error") {
+          console.error("Server error:", data.message);
         }
       };
-    }
 
-    document.getElementById("connectBtn").addEventListener("click", connect);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
 
-    // Ask AI on demand
-    document.getElementById("askAiBtn").addEventListener("click", () => {
-      if(ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "ask-ai", prompt: "Please reflect back to the group from the unified field." }));
-      }
-    });
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          e.arrayBuffer().then(buffer => {
+            ws.send(JSON.stringify({
+              type: "audio-chunk",
+              chunk: btoa(String.fromCharCode(...new Uint8Array(buffer))),
+              name: "Participant"
+            }));
+          });
+        }
+      };
+      mediaRecorder.start(250); // send chunks every 250ms
+    };
 
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(listMicrophones);
+    askBtn.onclick = () => {
+      const prompt = prompt("Enter your question for the Unified Field:");
+      ws.send(JSON.stringify({ type: "ask-ai", prompt }));
+    };
   </script>
 </body>
 </html>
