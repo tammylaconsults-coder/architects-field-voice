@@ -14,10 +14,9 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Serve index.html from public folder
 app.use(express.static("public"));
 
-// Conversation history
+// Store conversation
 let conversation = [];
 
 wss.on("connection", (ws) => {
@@ -26,7 +25,7 @@ wss.on("connection", (ws) => {
   ws.on("message", async (message) => {
     const data = JSON.parse(message);
 
-    // --- Handle audio chunk ---
+    // --- Audio chunk handler ---
     if (data.type === "audio-chunk") {
       const filename = `temp_${Date.now()}.webm`;
       const buffer = Buffer.from(data.chunk, "base64");
@@ -36,7 +35,7 @@ wss.on("connection", (ws) => {
       ffmpeg()
         .input(filename)
         .inputFormat("webm")
-        .audioCodec("pcm_s16le") // convert to wav-compatible PCM
+        .audioCodec("pcm_s16le")
         .format("wav")
         .on("end", async () => {
           try {
@@ -47,36 +46,35 @@ wss.on("connection", (ws) => {
 
             const participantName = data.name || "Participant";
             const userText = transcription.text.trim();
-            console.log(`${participantName} says:`, userText);
+            console.log(`${participantName}: ${userText}`);
 
             conversation.push({ role: "user", content: `${participantName}: ${userText}` });
           } catch (err) {
             console.error("Error transcribing audio:", err);
           } finally {
-            fs.unlinkSync(filename);
-            fs.unlinkSync(wavFile);
+            if (fs.existsSync(filename)) fs.unlinkSync(filename);
+            if (fs.existsSync(wavFile)) fs.unlinkSync(wavFile);
           }
         })
         .on("error", (err) => {
           console.error("FFmpeg error:", err.message);
-          fs.unlinkSync(filename);
+          if (fs.existsSync(filename)) fs.unlinkSync(filename);
           if (fs.existsSync(wavFile)) fs.unlinkSync(wavFile);
         })
         .save(wavFile);
     }
 
-    // --- Handle AI request on-demand ---
+    // --- AI request on-demand ---
     if (data.type === "ask-ai") {
       try {
-        const prompt = data.prompt || "Reflect back to the group from the unified field.";
+        const prompt = data.prompt || "Reflect back to the group from the Unified Field.";
 
         const aiResponse = await openai.chat.completions.create({
           model: "gpt-4o-mini",
           messages: [
             {
               role: "system",
-              content:
-                "You are the Unified Field, speaking as 'I Am One…yet I Am Many'. Reflect back to the group in a clear, unifying voice."
+              content: "You are the Unified Field, speaking as 'I Am One…yet I Am Many'. Reflect to the group clearly and collectively."
             },
             ...conversation,
             { role: "user", content: prompt }
@@ -109,6 +107,6 @@ wss.on("connection", (ws) => {
   });
 });
 
-// --- Start server ---
+// Start server
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
