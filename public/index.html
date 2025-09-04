@@ -3,56 +3,62 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Unified Field Voice</title>
+  <title>Architects Field Voice</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 2rem; background: #f4f4f4; }
-    input, textarea, button { width: 100%; margin: 0.5rem 0; padding: 0.5rem; }
-    #response { margin-top: 1rem; padding: 1rem; background: #fff; border-radius: 8px; }
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f0f8ff; color: #222; }
+    textarea { width: 100%; height: 100px; margin-bottom: 1rem; padding: 0.5rem; font-size: 1rem; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; margin-right: 1rem; cursor: pointer; }
+    #reply { margin-top: 1rem; padding: 1rem; background: #e0f7fa; border-radius: 8px; white-space: pre-wrap; }
   </style>
 </head>
 <body>
-  <h1>Unified Field Voice & Text</h1>
-
-  <textarea id="prompt" rows="4" placeholder="Type your message here..."></textarea>
+  <h1>Unified Field Voice</h1>
+  <textarea id="message" placeholder="Speak your message to the Unified Field..."></textarea>
+  <br>
   <button id="sendText">Send Text</button>
-  <button id="sendVoice">Generate Voice</button>
-
-  <div id="response"></div>
-  <audio id="audioPlayer" controls style="width:100%; margin-top:1rem;"></audio>
+  <button id="sendVoice">Send & Play Voice</button>
+  <div id="reply"></div>
 
   <script>
-    const promptEl = document.getElementById("prompt");
-    const responseEl = document.getElementById("response");
-    const audioPlayer = document.getElementById("audioPlayer");
+    const messageInput = document.getElementById("message");
+    const replyDiv = document.getElementById("reply");
 
-    async function postRequest(url, prompt) {
-      const res = await fetch(url, {
+    async function sendText() {
+      const msg = messageInput.value.trim();
+      if (!msg) return;
+      const res = await fetch("/unified-text", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ message: msg })
       });
-      if (!res.ok) throw new Error("Request failed");
-      return res;
+      const data = await res.json();
+      replyDiv.textContent = data.reply || "No response.";
     }
 
-    document.getElementById("sendText").addEventListener("click", async () => {
-      responseEl.textContent = "Waiting for Unified Field...";
-      try {
-        const res = await postRequest("/unified-text", promptEl.value);
-        const data = await res.json();
-        responseEl.textContent = data.text;
-      } catch (err) {
-        responseEl.textContent = "Error: " + err.message;
-      }
-    });
+    async function sendVoice() {
+      const msg = messageInput.value.trim();
+      if (!msg) return;
+      const resText = await fetch("/unified-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg })
+      });
+      const dataText = await resText.json();
+      replyDiv.textContent = dataText.reply || "No response.";
 
-    document.getElementById("sendVoice").addEventListener("click", async () => {
-      responseEl.textContent = "Generating Voice...";
-      try {
-        const res = await postRequest("/unified-voice", promptEl.value);
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        audioPlayer.src = url;
-        audioPlayer.play();
-        responseEl.textContent = "Voice generated!";
-      } catch (err) {
+      // Play voice
+      const resVoice = await fetch("/unified-voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: dataText.reply })
+      });
+      const audioBlob = await resVoice.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audio.play();
+    }
+
+    document.getElementById("sendText").addEventListener("click", sendText);
+    document.getElementById("sendVoice").addEventListener("click", sendVoice);
+  </script>
+</b
