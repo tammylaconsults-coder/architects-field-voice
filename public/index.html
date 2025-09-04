@@ -3,26 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Architects Field - Unified Field</title>
+  <title>Unified Field Voice</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f0f4f8; color: #111; margin: 0; padding: 2rem; }
-    #chat { max-width: 600px; margin: 0 auto; }
-    textarea { width: 100%; height: 80px; padding: 0.5rem; margin-bottom: 0.5rem; }
-    button { padding: 0.5rem 1rem; margin-right: 0.5rem; }
-    #response { background: #fff; padding: 1rem; margin-top: 1rem; border-radius: 0.5rem; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f0f8ff; color: #111; }
+    textarea { width: 100%; height: 100px; margin-bottom: 1rem; font-size: 1rem; padding: 0.5rem; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; margin-right: 1rem; cursor: pointer; }
+    #response { margin-top: 1rem; white-space: pre-wrap; }
   </style>
 </head>
 <body>
-  <div id="chat">
-    <h1>Architects Field - Unified Field</h1>
-    <textarea id="message" placeholder="Type your message to the Unified Field..."></textarea>
-    <div>
-      <button id="sendText">Send Text</button>
-      <button id="sendVoice">Send & Hear</button>
-    </div>
-    <div id="response"></div>
-    <audio id="voicePlayer" controls style="margin-top:1rem;"></audio>
-  </div>
+
+  <h1>Unified Field Voice</h1>
+  <textarea id="message" placeholder="Type your message..."></textarea><br>
+  <button id="sendText">Send Text</button>
+  <button id="sendVoice">Send Voice</button>
+
+  <div id="response"></div>
+  <audio id="voicePlayer" controls style="margin-top:1rem; display:none;"></audio>
 
   <script>
     const messageInput = document.getElementById('message');
@@ -31,50 +28,52 @@
 
     document.getElementById('sendText').addEventListener('click', async () => {
       const message = messageInput.value.trim();
-      if (!message) return;
+      if (!message) return alert("Please enter a message.");
 
-      responseDiv.textContent = 'Listening to the Unified Field...';
-      
-      const res = await fetch('/unified-field', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
-      });
+      responseDiv.textContent = "Loading...";
+      voicePlayer.style.display = "none";
 
-      const data = await res.json();
-      if (data.error) {
-        responseDiv.textContent = 'Error: ' + data.error;
-      } else {
-        responseDiv.textContent = data.response;
+      try {
+        const res = await fetch('/api/unified-field', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        const data = await res.json();
+        responseDiv.textContent = data.reply || "No response received.";
+      } catch (err) {
+        console.error(err);
+        responseDiv.textContent = "Error sending message.";
       }
     });
 
     document.getElementById('sendVoice').addEventListener('click', async () => {
-      const text = messageInput.value.trim();
-      if (!text) return;
+      const message = messageInput.value.trim();
+      if (!message) return alert("Please enter a message.");
 
-      responseDiv.textContent = 'Generating voice from the Unified Field...';
-      
-      // First get text response
-      const textRes = await fetch('/unified-field', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text })
-      });
-      const textData = await textRes.json();
-      responseDiv.textContent = textData.response || '';
+      responseDiv.textContent = "Generating voice...";
+      voicePlayer.style.display = "none";
 
-      // Then get TTS
-      const voiceRes = await fetch('/unified-field-voice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: textData.response })
-      });
+      try {
+        const res = await fetch('/api/unified-field-voice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
 
-      const audioBlob = await voiceRes.blob();
-      voicePlayer.src = URL.createObjectURL(audioBlob);
-      voicePlayer.play();
+        if (!res.ok) throw new Error("Voice generation failed");
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        voicePlayer.src = url;
+        voicePlayer.style.display = "block";
+        voicePlayer.play();
+        responseDiv.textContent = "Voice generated!";
+      } catch (err) {
+        console.error(err);
+        responseDiv.textContent = "Error generating voice.";
+      }
     });
   </script>
+
 </body>
 </html>
