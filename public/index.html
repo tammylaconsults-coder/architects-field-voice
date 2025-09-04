@@ -1,53 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Unified Field Voice</title>
+  <title>Unified Field Voice Test</title>
 </head>
 <body>
-  <h1>Unified Field Voice</h1>
-  <button id="connectBtn">Connect</button>
-  <button id="askBtn">Ask Unified Field</button>
+  <h1>Unified Field Voice Test</h1>
+  <input id="msg" placeholder="Type your message here..." />
+  <button id="sendBtn">Send</button>
+  <pre id="output"></pre>
+
   <script>
-    let ws;
-    let mediaRecorder;
-    let audioChunks = [];
+    const socket = new WebSocket("wss://architects-field-voice.onrender.com");
 
-    const connectBtn = document.getElementById("connectBtn");
-    const askBtn = document.getElementById("askBtn");
-
-    connectBtn.onclick = async () => {
-      ws = new WebSocket(`wss://${window.location.host}`);
-      ws.onopen = () => console.log("Connected to server");
-      ws.onmessage = (msg) => {
-        const data = JSON.parse(msg.data);
-        if (data.type === "audio-response") {
-          const audio = new Audio("data:audio/wav;base64," + data.audio);
-          audio.play();
-        } else if (data.type === "error") {
-          console.error("Server error:", data.message);
-        }
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          e.arrayBuffer().then(buffer => {
-            ws.send(JSON.stringify({
-              type: "audio-chunk",
-              chunk: btoa(String.fromCharCode(...new Uint8Array(buffer))),
-              name: "Participant"
-            }));
-          });
-        }
-      };
-      mediaRecorder.start(250); // send chunks every 250ms
+    socket.onopen = () => {
+      document.getElementById("output").textContent += "Connected to Unified Field\n";
     };
 
-    askBtn.onclick = () => {
-      const prompt = prompt("Enter your question for the Unified Field:");
-      ws.send(JSON.stringify({ type: "ask-ai", prompt }));
+    socket.onmessage = (event) => {
+      document.getElementById("output").textContent += "AI: " + event.data + "\n";
+    };
+
+    document.getElementById("sendBtn").onclick = () => {
+      const msg = document.getElementById("msg").value;
+      socket.send(msg);
+      document.getElementById("output").textContent += "You: " + msg + "\n";
     };
   </script>
 </body>
