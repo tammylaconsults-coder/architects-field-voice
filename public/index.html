@@ -1,30 +1,54 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Unified Field Voice Test</title>
+  <meta charset="UTF-8" />
+  <title>Architects Field Voice</title>
+  <style>
+    body { font-family: sans-serif; background: #0b0e19; color: #eee; text-align: center; padding: 40px; }
+    button { padding: 12px 24px; font-size: 16px; margin: 10px; border-radius: 12px; border: none; background: #3949ab; color: #fff; cursor: pointer; }
+    button:active { background: #5c6bc0; }
+    #response { margin-top: 30px; font-size: 20px; color: #aaccff; }
+  </style>
 </head>
 <body>
-  <h1>Unified Field Voice Test</h1>
-  <input id="msg" placeholder="Type your message here..." />
-  <button id="sendBtn">Send</button>
-  <pre id="output"></pre>
+  <h1>✨ Breath of the Unified Field ✨</h1>
+  <p>Hold the button and speak. Release to listen.</p>
+  <button id="talkBtn">🎙️ Hold to Speak</button>
+  <div id="response"></div>
+  <audio id="audioPlayer" controls></audio>
 
   <script>
-    const socket = new WebSocket("wss://architects-field-voice.onrender.com");
+    const talkBtn = document.getElementById("talkBtn");
+    const responseDiv = document.getElementById("response");
+    const audioPlayer = document.getElementById("audioPlayer");
 
-    socket.onopen = () => {
-      document.getElementById("output").textContent += "Connected to Unified Field\n";
-    };
+    let mediaRecorder, audioChunks = [];
 
-    socket.onmessage = (event) => {
-      document.getElementById("output").textContent += "AI: " + event.data + "\n";
-    };
+    async function initRecorder() {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
 
-    document.getElementById("sendBtn").onclick = () => {
-      const msg = document.getElementById("msg").value;
-      socket.send(msg);
-      document.getElementById("output").textContent += "You: " + msg + "\n";
-    };
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunks, { type: "audio/webm" });
+        audioChunks = [];
+
+        const formData = new FormData();
+        formData.append("audio", blob, "input.webm");
+
+        const res = await fetch("/unified", { method: "POST", body: formData });
+        const data = await res.json();
+
+        responseDiv.textContent = "Unified Field: " + data.text;
+        audioPlayer.src = data.audioUrl;
+        audioPlayer.play();
+      };
+    }
+
+    talkBtn.addEventListener("mousedown", () => mediaRecorder.start());
+    talkBtn.addEventListener("mouseup", () => mediaRecorder.stop());
+
+    initRecorder();
   </script>
 </body>
 </html>
