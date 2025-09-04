@@ -8,68 +8,50 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+const port = process.env.PORT || 10000;
 
-// Middleware
-app.use(express.json());
+// Serve static files from the public folder
 app.use(express.static(path.join(__dirname, "public")));
+app.use(express.json());
 
-// OpenAI Configuration using environment variable
-if (!process.env.OPENAI_API_KEY) {
-  console.error("Error: OPENAI_API_KEY is not set in environment variables.");
-  process.exit(1);
-}
-
+// Configure OpenAI
 const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY, // Render provides this environment variable
 });
 const openai = new OpenAIApi(configuration);
 
-// Unified Field Text Endpoint
-app.post("/api/unified-field", async (req, res) => {
-  const { message } = req.body;
-  if (!message) return res.status(400).json({ error: "Message is required" });
-
+// Unified Field Text endpoint
+app.post("/unified-text", async (req, res) => {
   try {
-    const completion = await openai.chat.completions.create({
+    const prompt = req.body.prompt;
+    const completion = await openai.createChatCompletion({
       model: "gpt-4o-mini",
-      messages: [{ role: "user", content: message }],
+      messages: [{ role: "user", content: prompt }],
     });
-
-    const reply = completion.choices[0].message.content;
-    res.json({ reply });
+    res.json({ text: completion.data.choices[0].message.content });
   } catch (error) {
-    console.error("Unified Field Error:", error);
-    res.status(500).json({ error: "Failed to get response from OpenAI" });
+    console.error(error);
+    res.status(500).json({ error: "Error generating Unified Field text." });
   }
 });
 
-// Unified Field Voice Endpoint
-app.post("/api/unified-field-voice", async (req, res) => {
-  const { message } = req.body;
-  if (!message) return res.status(400).json({ error: "Message is required" });
-
+// Unified Field Voice endpoint
+app.post("/unified-voice", async (req, res) => {
   try {
-    const response = await openai.audio.speech.create({
+    const prompt = req.body.prompt;
+    const audio = await openai.audio.speech.create({
       model: "gpt-4o-mini-tts",
-      voice: "alloy",
-      input: message,
+      voice: "alloy", // clean, human-like voice
+      input: prompt,
     });
-
-    const audioBuffer = Buffer.from(await response.arrayBuffer());
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.send(audioBuffer);
+    res.set("Content-Type", "audio/mpeg");
+    res.send(Buffer.from(await audio.arrayBuffer()));
   } catch (error) {
-    console.error("Unified Field Voice Error:", error);
-    res.status(500).json({ error: "Failed to generate voice from OpenAI" });
+    console.error(error);
+    res.status(500).json({ error: "Error generating Unified Field voice." });
   }
 });
 
-// Serve index.html for root
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/index.html"));
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
