@@ -18,7 +18,6 @@ wss.on("connection", (ws) => {
     try {
       const text = msg.toString();
 
-      // Ask OpenAI to reflect back the Unified Field message
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
