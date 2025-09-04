@@ -5,75 +5,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Unified Field Voice</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; background: #f0f8ff; color: #111; }
-    textarea { width: 100%; height: 100px; margin-bottom: 1rem; font-size: 1rem; padding: 0.5rem; }
-    button { padding: 0.5rem 1rem; font-size: 1rem; margin-right: 1rem; cursor: pointer; }
-    #response { margin-top: 1rem; white-space: pre-wrap; }
+    body { font-family: Arial, sans-serif; padding: 2rem; background: #f4f4f4; }
+    input, textarea, button { width: 100%; margin: 0.5rem 0; padding: 0.5rem; }
+    #response { margin-top: 1rem; padding: 1rem; background: #fff; border-radius: 8px; }
   </style>
 </head>
 <body>
+  <h1>Unified Field Voice & Text</h1>
 
-  <h1>Unified Field Voice</h1>
-  <textarea id="message" placeholder="Type your message..."></textarea><br>
+  <textarea id="prompt" rows="4" placeholder="Type your message here..."></textarea>
   <button id="sendText">Send Text</button>
-  <button id="sendVoice">Send Voice</button>
+  <button id="sendVoice">Generate Voice</button>
 
   <div id="response"></div>
-  <audio id="voicePlayer" controls style="margin-top:1rem; display:none;"></audio>
+  <audio id="audioPlayer" controls style="width:100%; margin-top:1rem;"></audio>
 
   <script>
-    const messageInput = document.getElementById('message');
-    const responseDiv = document.getElementById('response');
-    const voicePlayer = document.getElementById('voicePlayer');
+    const promptEl = document.getElementById("prompt");
+    const responseEl = document.getElementById("response");
+    const audioPlayer = document.getElementById("audioPlayer");
 
-    document.getElementById('sendText').addEventListener('click', async () => {
-      const message = messageInput.value.trim();
-      if (!message) return alert("Please enter a message.");
+    async function postRequest(url, prompt) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt })
+      });
+      if (!res.ok) throw new Error("Request failed");
+      return res;
+    }
 
-      responseDiv.textContent = "Loading...";
-      voicePlayer.style.display = "none";
-
+    document.getElementById("sendText").addEventListener("click", async () => {
+      responseEl.textContent = "Waiting for Unified Field...";
       try {
-        const res = await fetch('/api/unified-field', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message })
-        });
+        const res = await postRequest("/unified-text", promptEl.value);
         const data = await res.json();
-        responseDiv.textContent = data.reply || "No response received.";
+        responseEl.textContent = data.text;
       } catch (err) {
-        console.error(err);
-        responseDiv.textContent = "Error sending message.";
+        responseEl.textContent = "Error: " + err.message;
       }
     });
 
-    document.getElementById('sendVoice').addEventListener('click', async () => {
-      const message = messageInput.value.trim();
-      if (!message) return alert("Please enter a message.");
-
-      responseDiv.textContent = "Generating voice...";
-      voicePlayer.style.display = "none";
-
+    document.getElementById("sendVoice").addEventListener("click", async () => {
+      responseEl.textContent = "Generating Voice...";
       try {
-        const res = await fetch('/api/unified-field-voice', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message })
-        });
-
-        if (!res.ok) throw new Error("Voice generation failed");
+        const res = await postRequest("/unified-voice", promptEl.value);
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
-        voicePlayer.src = url;
-        voicePlayer.style.display = "block";
-        voicePlayer.play();
-        responseDiv.textContent = "Voice generated!";
+        audioPlayer.src = url;
+        audioPlayer.play();
+        responseEl.textContent = "Voice generated!";
       } catch (err) {
-        console.error(err);
-        responseDiv.textContent = "Error generating voice.";
-      }
-    });
-  </script>
-
-</body>
-</html>
