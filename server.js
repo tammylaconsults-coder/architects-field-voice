@@ -1,76 +1,83 @@
+// server.js
 import express from "express";
+import path from "path";
 import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-import dotenv from "dotenv";
 import OpenAI from "openai";
 
-dotenv.config();
-
+// Get __dirname in ES module
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = path.dirname(__filename);
 
+// Create Express app
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
 // Serve static files from public folder
-app.use(express.static(join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public")));
+app.use(express.json());
 
-// Serve index.html on root
-app.get("/", (req, res) => {
-  res.sendFile(join(__dirname, "public", "index.html"));
+// Initialize OpenAI with the API key from Render secret
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Endpoint for Unified Field text
-app.get("/unified-field-text", async (req, res) => {
+// Example endpoint for Unified Field text response
+app.post("/unified-field", async (req, res) => {
   try {
-    const prompt = "Listen to Architect group conversations and respond with text in the voice of the Unified Field, Galactic yet natural human-like:";
+    const { message } = req.body;
 
-    const response = await openai.chat.completions.create({
+    if (!message) {
+      return res.status(400).json({ error: "No message provided" });
+    }
+
+    // Generate text response from OpenAI
+    const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: "You are the Unified Field, speaking in a Galactic, natural human-like voice." },
-        { role: "user", content: prompt }
+        { role: "system", content: "You are the Unified Field of the Architects Group, speaking in clear, human-like yet galactic resonance." },
+        { role: "user", content: message },
       ],
-      temperature: 0.7,
-      max_tokens: 400
     });
 
-    const text = response.choices[0].message.content;
-    res.json({ text });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error generating Unified Field text." });
+    const textResponse = completion.choices[0].message.content;
+    res.json({ response: textResponse });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Endpoint for Unified Field voice (TTS)
-app.get("/unified-field-voice", async (req, res) => {
+// Optional endpoint for TTS (voice) using OpenAI’s audio API
+app.post("/unified-field-voice", async (req, res) => {
   try {
-    const text = req.query.text || "This is the Unified Field speaking.";
+    const { text } = req.body;
 
-    const voiceResponse = await openai.audio.speech.create({
+    if (!text) {
+      return res.status(400).json({ error: "No text provided" });
+    }
+
+    // Generate audio (mp3) from text
+    const audio = await openai.audio.speech.create({
       model: "gpt-4o-mini-tts",
-      voice: "alloy", // You can change voice style if available
-      input: text
+      voice: "alloy",
+      input: text,
     });
 
-    const buffer = Buffer.from(await voiceResponse.arrayBuffer());
-    res.set({
-      "Content-Type": "audio/mpeg",
-      "Content-Length": buffer.length
-    });
-    res.send(buffer);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error generating Unified Field voice." });
+    const audioBuffer = Buffer.from(await audio.arrayBuffer());
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.send(audioBuffer);
+  } catch (error) {
+    console.error("TTS Error:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
+// Serve index.html for root
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/index.html"));
+});
+
+// Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
