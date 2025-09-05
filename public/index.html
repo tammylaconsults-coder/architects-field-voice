@@ -1,54 +1,131 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Unified Field Voice</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
-    #chat { max-width: 600px; margin: auto; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unified Field Voice</title>
+<style>
+    body { font-family: Arial, sans-serif; background: #f0f0f5; padding: 20px; }
     #messages { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; background: #fff; }
-    .message { margin-bottom: 10px; }
-    .user { color: blue; }
-    .unified { color: green; }
-    #controls { margin-top: 10px; display: flex; gap: 5px; }
-  </style>
+    #inputArea { margin-top: 10px; display: flex; gap: 5px; }
+    button { padding: 5px 10px; }
+</style>
 </head>
 <body>
-  <div id="chat">
-    <h2>Unified Field</h2>
-    <div id="messages"></div>
 
+<h1>Unified Field Voice</h1>
+
+<div id="messages"></div>
+
+<div id="inputArea">
+    <input type="text" id="messageInput" placeholder="Type your message..." />
+    <button id="sendBtn">Send</button>
+    <button id="micBtn">🎤</button>
     <select id="micSelect"></select>
-    <div id="controls">
-      <input type="text" id="userInput" placeholder="Type a message" style="flex: 1;">
-      <button id="sendBtn">Send</button>
-      <button id="voiceBtn">🎤 Speak</button>
-    </div>
-  </div>
+</div>
 
-  <script>
-    const messagesDiv = document.getElementById("messages");
-    const userInput = document.getElementById("userInput");
-    const sendBtn = document.getElementById("sendBtn");
-    const voiceBtn = document.getElementById("voiceBtn");
-    const micSelect = document.getElementById("micSelect");
+<script>
+const messagesDiv = document.getElementById("messages");
+const messageInput = document.getElementById("messageInput");
+const sendBtn = document.getElementById("sendBtn");
+const micBtn = document.getElementById("micBtn");
+const micSelect = document.getElementById("micSelect");
 
-    // Speech synthesis for Unified Field voice
-    function speak(text) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
-      speechSynthesis.speak(utterance);
+// Helper: display message
+function addMessage(sender, text) {
+    const msg = document.createElement("div");
+    msg.innerHTML = `<strong>${sender}:</strong> ${text}`;
+    messagesDiv.appendChild(msg);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+// Send message to server
+async function sendMessage(message) {
+    addMessage("You", message);
+    try {
+        const res = await fetch("/api/message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message })
+        });
+        const data = await res.json();
+        if(data.reply) {
+            addMessage("Unified Field", data.reply);
+            speakText(data.reply);
+        }
+    } catch (err) {
+        console.error(err);
+        addMessage("Error", "Failed to get response from Unified Field");
+    }
+}
+
+// Text-to-Speech
+function speakText(text) {
+    const utter = new SpeechSynthesisUtterance(text);
+    speechSynthesis.speak(utter);
+}
+
+// Send button
+sendBtn.addEventListener("click", () => {
+    const msg = messageInput.value.trim();
+    if(msg) {
+        sendMessage(msg);
+        messageInput.value = "";
+    }
+});
+
+// Enter key
+messageInput.addEventListener("keypress", e => {
+    if(e.key === "Enter") sendBtn.click();
+});
+
+// Microphone access
+let recognition;
+async function initMic() {
+    if(!('mediaDevices' in navigator)) return;
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    micSelect.innerHTML = "";
+    devices.filter(d => d.kind === "audioinput").forEach((d, i) => {
+        const opt = document.createElement("option");
+        opt.value = d.deviceId;
+        opt.text = d.label || `Mic ${i+1}`;
+        micSelect.appendChild(opt);
+    });
+
+    if(!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+        micBtn.disabled = true;
+        return;
     }
 
-    // Append message to chat
-    function addMessage(text, sender) {
-      const div = document.createElement("div");
-      div.classList.add("message", sender);
-      div.textContent = text;
-      messagesDiv.appendChild(div);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
 
-    // Send text message
-    async function sendMes
+    recognition.onresult = (event) => {
+        const speech = event.results[0][0].transcript;
+        messageInput.value = speech;
+        sendBtn.click();
+    };
+
+    recognition.onerror = (e) => console.error(e);
+}
+
+// Start/stop microphone
+micBtn.addEventListener("click", () => {
+    if(!recognition) return;
+    if(recognition.recognizing) {
+        recognition.stop();
+        recognition.recognizing = false;
+    } else {
+        recognition.start();
+        recognition.recognizing = true;
+    }
+});
+
+// Initialize mic list
+initMic();
+</script>
+
+</body>
+</html>
