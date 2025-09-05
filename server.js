@@ -1,48 +1,37 @@
 import express from "express";
 import cors from "cors";
-import bodyParser from "body-parser";
-import { OpenAIApi, Configuration } from "openai";
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Middleware
 app.use(cors());
-app.use(bodyParser.json());
-app.use(express.static("public")); // serve index.html from public folder
+app.use(express.json());
+app.use(express.static("public"));
 
-// OpenAI configuration using Render secret
-const openaiApiKey = process.env.OPENAI_API_KEY;
-if (!openaiApiKey) {
-    console.error("ERROR: OPENAI_API_KEY not set in environment!");
-    process.exit(1);
-}
+// Shared chat history
+let chatHistory = [];
 
-const configuration = new Configuration({ apiKey: openaiApiKey });
-const openai = new OpenAIApi(configuration);
-
-// Example endpoint for text responses
-app.post("/api/message", async (req, res) => {
-    const { message } = req.body;
-    if (!message) {
-        return res.status(400).json({ error: "No message provided" });
-    }
-
-    try {
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [{ role: "user", content: message }]
-        });
-
-        const responseText = completion.choices[0].message.content;
-        res.json({ reply: responseText });
-    } catch (error) {
-        console.error("OpenAI Error:", error);
-        res.status(500).json({ error: "OpenAI request failed" });
-    }
+// Get chat history
+app.get("/api/history", (req, res) => {
+  res.json(chatHistory);
 });
 
-// Start server
+// Send message
+app.post("/api/message", async (req, res) => {
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: "No message sent" });
+
+  // Add user message
+  chatHistory.push({ sender: "You", text: message });
+
+  // Generate a simulated Unified Field reply
+  const reply = `Unified Field: ${message} (echoed as sound/text)`;
+
+  chatHistory.push({ sender: "Unified Field", text: reply });
+
+  res.json({ reply });
+});
+
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
