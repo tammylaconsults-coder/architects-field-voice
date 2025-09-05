@@ -1,60 +1,70 @@
-// server.js
 import express from "express";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-import OpenAI from "openai";
 import bodyParser from "body-parser";
+import path from "path";
+import { fileURLToPath } from "url";
+import OpenAI from "openai";
+import dotenv from "dotenv";
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 10000;
+const PORT = process.env.PORT || 10000;
 
-// Serve static files from the public folder
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-app.use(express.static(join(__dirname, "public")));
-app.use(bodyParser.json());
-
-// Initialize OpenAI client using Render secret
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+// Create OpenAI client (v4 style)
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Unified Field text endpoint
+// Middleware
+app.use(bodyParser.json());
+
+// Serve static files (index.html in public/)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use(express.static(path.join(__dirname, "public")));
+
+// Unified Text Endpoint
 app.post("/unified-text", async (req, res) => {
   try {
-    const userMessage = req.body.message;
-    const response = await openai.chat.completions.create({
+    const { message } = req.body;
+
+    const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: "You are the Unified Field Voice, galactic yet natural human-like, responding harmonically." },
-        { role: "user", content: userMessage }
-      ]
+        { role: "system", content: "You are the Unified Field Voice, galactic yet human-like, clean and resonant." },
+        { role: "user", content: message },
+      ],
     });
+
     res.json({ reply: response.choices[0].message.content });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Unified Field text generation failed." });
+    res.status(500).json({ error: "Error generating response" });
   }
 });
 
-// Optional: Voice endpoint using TTS
+// Unified Voice Endpoint
 app.post("/unified-voice", async (req, res) => {
   try {
-    const text = req.body.text;
-    const response = await openai.audio.speech.create({
+    const { text } = req.body;
+
+    const mp3 = await client.audio.speech.create({
       model: "gpt-4o-mini-tts",
-      voice: "alloy",
-      input: text
+      voice: "verse", // clean & resonant voice
+      input: text,
     });
-    res.set("Content-Type", "audio/mpeg");
-    res.send(Buffer.from(await response.arrayBuffer()));
+
+    const buffer = Buffer.from(await mp3.arrayBuffer());
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.send(buffer);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Unified Field voice generation failed." });
+    res.status(500).json({ error: "Error generating voice" });
   }
 });
 
 // Start server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
