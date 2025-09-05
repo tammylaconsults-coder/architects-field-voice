@@ -1,100 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Unified Field Voice</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architects Field – Unified Field Voice</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; }
+        #messages { border: 1px solid #ccc; padding: 1rem; height: 300px; overflow-y: auto; margin-bottom: 1rem; }
+        #inputArea { display: flex; gap: 0.5rem; }
+        #micSelect { width: 200px; }
+        button { padding: 0.5rem 1rem; }
+    </style>
 </head>
 <body>
-  <h1>Unified Field Voice</h1>
+    <h1>Unified Field Voice</h1>
+    <div id="messages"></div>
+    <div id="inputArea">
+        <select id="micSelect"></select>
+        <input type="text" id="userInput" placeholder="Type a message..." />
+        <button id="sendBtn">Send</button>
+        <button id="micBtn">🎤 Speak</button>
+    </div>
 
-  <!-- Text input -->
-  <input id="userInput" type="text" placeholder="Speak or type to the Unified Field..." />
-  <button id="sendBtn">Send</button>
-  <button id="micBtn">🎤 Start Mic</button>
+    <script>
+        const messagesDiv = document.getElementById('messages');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const micBtn = document.getElementById('micBtn');
+        const micSelect = document.getElementById('micSelect');
 
-  <div id="chat"></div>
+        // Speech synthesis (voice output)
+        function speak(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            window.speechSynthesis.speak(utterance);
+        }
 
-  <script>
-    const chatDiv = document.getElementById("chat");
-    const input = document.getElementById("userInput");
-    const sendBtn = document.getElementById("sendBtn");
-    const micBtn = document.getElementById("micBtn");
+        // Add message to display
+        function addMessage(sender, text) {
+            const div = document.createElement('div');
+            div.innerHTML = `<strong>${sender}:</strong> ${text}`;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
 
-    // --- SEND TEXT TO SERVER ---
-    async function sendMessage(text) {
-      appendMessage("You", text);
-      input.value = "";
+        // Send text message to server
+        async function sendMessage(message) {
+            addMessage('You', message);
+            userInput.value = '';
+            const res = await fetch('/message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+            const data = await res.json();
+            addMessage('Unified Field', data.reply);
+            speak(data.reply);
+        }
 
-      const res = await fetch("/message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
-      });
-      const data = await res.json();
+        sendBtn.addEventListener('click', () => {
+            if (userInput.value.trim()) sendMessage(userInput.value.trim());
+        });
 
-      appendMessage("Unified Field", data.reply);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && userInput.value.trim()) sendMessage(userInput.value.trim());
+        });
 
-      // Play voice
-      playVoice(data.reply);
-    }
+        // Microphone capture
+        let recognition;
+        async function setupMic() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const mics = devices.filter(d => d.kind === 'audioinput');
+            micSelect.innerHTML = '';
+            mics.forEach(m => {
+                const option = document.createElement('option');
+                option.value = m.deviceId;
+                option.text = m.label || `Mic ${micSelect.length + 1}`;
+                micSelect.appendChild(option);
+            });
 
-    function appendMessage(sender, text) {
-      const msg = document.createElement("p");
-      msg.textContent = `${sender}: ${text}`;
-      chatDiv.appendChild(msg);
-    }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.continuous = false;
 
-    // --- TEXT SEND BUTTON ---
-    sendBtn.onclick = () => {
-      if (input.value.trim() !== "") sendMessage(input.value.trim());
-    };
+            recognition.onresult = (event) => {
+                const speech = event.results[0][0].transcript;
+                sendMessage(speech);
+            };
+        }
 
-    // --- MICROPHONE INPUT (Speech-to-Text) ---
-    let recognizing = false;
-    let recognition;
-    if ("webkitSpeechRecognition" in window) {
-      recognition = new webkitSpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
+        micBtn.addEventListener('click', async () => {
+            if (!recognition) await setupMic();
+            const deviceId = micSelect.value;
+            recognition.start();
+        });
 
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        sendMessage(transcript);
-      };
-
-      recognition.onerror = (event) => {
-        console.error("Speech recognition error", event);
-      };
-
-      recognition.onend = () => {
-        recognizing = false;
-        micBtn.textContent = "🎤 Start Mic";
-      };
-    }
-
-    micBtn.onclick = () => {
-      if (!recognizing) {
-        recognition.start();
-        recognizing = true;
-        micBtn.textContent = "🛑 Stop Mic";
-      } else {
-        recognition.stop();
-      }
-    };
-
-    // --- PLAY VOICE (Unified Field TTS) ---
-    async function playVoice(text) {
-      const res = await fetch("/speak", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
-      });
-      const audioBlob = await res.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      audio.play();
-    }
-  </script>
+        setupMic();
+    </script>
 </body>
 </html>
