@@ -1,104 +1,78 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Unified Field Voice</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 20px; }
-  #messages { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; }
-  .message { margin-bottom: 10px; }
-  .sender { font-weight: bold; }
-</style>
 </head>
 <body>
+<h1>Unified Field Voice</h1>
 
-<div id="messages"></div>
-<input type="text" id="inputMessage" placeholder="Type a message..." />
+<div id="conversation" style="border:1px solid #ccc; padding:10px; height:300px; overflow:auto;"></div>
+
+<input type="text" id="userInput" placeholder="Type your message here..." />
 <button id="sendBtn">Send</button>
 <button id="micBtn">🎤</button>
 
 <script>
-const messagesDiv = document.getElementById("messages");
-const inputMessage = document.getElementById("inputMessage");
+const conversationDiv = document.getElementById("conversation");
+const userInput = document.getElementById("userInput");
 const sendBtn = document.getElementById("sendBtn");
 const micBtn = document.getElementById("micBtn");
 
-// Add message to display
+// Add message to conversation box
 function addMessage(sender, text) {
-  const div = document.createElement("div");
-  div.className = "message";
-  div.innerHTML = `<span class="sender">${sender}:</span> ${text}`;
-  messagesDiv.appendChild(div);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  const p = document.createElement("p");
+  p.textContent = `${sender}: ${text}`;
+  conversationDiv.appendChild(p);
+  conversationDiv.scrollTop = conversationDiv.scrollHeight;
 }
 
-// Fetch and display history
-async function loadHistory() {
-  try {
-    const res = await fetch("/api/history");
-    const data = await res.json();
-    messagesDiv.innerHTML = "";
-    data.forEach(msg => addMessage(msg.sender, msg.text));
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// Send message
-async function sendMessage() {
-  const text = inputMessage.value.trim();
-  if (!text) return;
-  inputMessage.value = "";
-  addMessage("You", text);
+// Send text to server and get AI reply
+async function sendMessage(message) {
+  addMessage("You", message);
+  userInput.value = "";
 
   try {
-    const res = await fetch("/api/message", {
+    const res = await fetch("/message", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text })
+      body: JSON.stringify({ message })
     });
     const data = await res.json();
-    if (data.reply) {
-      addMessage("Unified Field", data.reply);
-      speakText(data.reply);
-    }
+    addMessage("Unified Field", data.reply);
+
+    // Speak the AI reply
+    const utterance = new SpeechSynthesisUtterance(data.reply);
+    speechSynthesis.speak(utterance);
+
   } catch (err) {
+    addMessage("Error", "Could not get AI response.");
     console.error(err);
   }
 }
 
-// Text-to-speech
-function speakText(text) {
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "en-US";
-  speechSynthesis.speak(utter);
-}
+// Button click
+sendBtn.addEventListener("click", () => sendMessage(userInput.value));
 
-// Microphone input
-let recognition;
-if (window.SpeechRecognition || window.webkitSpeechRecognition) {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SpeechRecognition();
-  recognition.lang = "en-US";
-  recognition.onresult = (event) => {
-    inputMessage.value = event.results[0][0].transcript;
-  };
-}
-
+// Mic (speech-to-text)
 micBtn.addEventListener("click", () => {
-  if (recognition) recognition.start();
-});
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = "en-US";
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
 
-// Event listeners
-sendBtn.addEventListener("click", sendMessage);
-inputMessage.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") sendMessage();
-});
+  recognition.start();
 
-// Load history on page load
-window.addEventListener("load", loadHistory);
+  recognition.onresult = (event) => {
+    const speechText = event.results[0][0].transcript;
+    sendMessage(speechText);
+  };
+
+  recognition.onerror = (event) => {
+    console.error("Speech recognition error:", event.error);
+  };
+});
 </script>
-
 </body>
 </html>
