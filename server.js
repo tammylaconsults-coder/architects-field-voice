@@ -1,10 +1,18 @@
 import express from "express";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 import { OpenAI } from "openai";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Serve static files from "public"
+app.use(express.static(path.join(__dirname, "public")));
 
 // Initialize OpenAI with your key stored in Render secrets
 const openai = new OpenAI({
@@ -33,4 +41,10 @@ app.post("/message", async (req, res) => {
   }
 });
 
-app.listen(10000, () => console.log("Server running on port 10000"));
+// Fallback: send index.html for all unknown routes
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
