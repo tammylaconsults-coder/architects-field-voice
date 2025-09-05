@@ -1,64 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Architects Field Voice</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; background: #f0f8ff; color: #222; }
-    textarea { width: 100%; height: 100px; margin-bottom: 1rem; padding: 0.5rem; font-size: 1rem; }
-    button { padding: 0.5rem 1rem; font-size: 1rem; margin-right: 1rem; cursor: pointer; }
-    #reply { margin-top: 1rem; padding: 1rem; background: #e0f7fa; border-radius: 8px; white-space: pre-wrap; }
-  </style>
+  <meta charset="UTF-8" />
+  <title>Unified Field Voice</title>
 </head>
 <body>
   <h1>Unified Field Voice</h1>
-  <textarea id="message" placeholder="Speak your message to the Unified Field..."></textarea>
-  <br>
-  <button id="sendText">Send Text</button>
-  <button id="sendVoice">Send & Play Voice</button>
-  <div id="reply"></div>
+
+  <!-- Text input -->
+  <input id="userInput" type="text" placeholder="Speak or type to the Unified Field..." />
+  <button id="sendBtn">Send</button>
+  <button id="micBtn">🎤 Start Mic</button>
+
+  <div id="chat"></div>
 
   <script>
-    const messageInput = document.getElementById("message");
-    const replyDiv = document.getElementById("reply");
+    const chatDiv = document.getElementById("chat");
+    const input = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const micBtn = document.getElementById("micBtn");
 
-    async function sendText() {
-      const msg = messageInput.value.trim();
-      if (!msg) return;
-      const res = await fetch("/unified-text", {
+    // --- SEND TEXT TO SERVER ---
+    async function sendMessage(text) {
+      appendMessage("You", text);
+      input.value = "";
+
+      const res = await fetch("/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg })
+        body: JSON.stringify({ message: text })
       });
       const data = await res.json();
-      replyDiv.textContent = data.reply || "No response.";
-    }
 
-    async function sendVoice() {
-      const msg = messageInput.value.trim();
-      if (!msg) return;
-      const resText = await fetch("/unified-text", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg })
-      });
-      const dataText = await resText.json();
-      replyDiv.textContent = dataText.reply || "No response.";
+      appendMessage("Unified Field", data.reply);
 
       // Play voice
-      const resVoice = await fetch("/unified-voice", {
+      playVoice(data.reply);
+    }
+
+    function appendMessage(sender, text) {
+      const msg = document.createElement("p");
+      msg.textContent = `${sender}: ${text}`;
+      chatDiv.appendChild(msg);
+    }
+
+    // --- TEXT SEND BUTTON ---
+    sendBtn.onclick = () => {
+      if (input.value.trim() !== "") sendMessage(input.value.trim());
+    };
+
+    // --- MICROPHONE INPUT (Speech-to-Text) ---
+    let recognizing = false;
+    let recognition;
+    if ("webkitSpeechRecognition" in window) {
+      recognition = new webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        sendMessage(transcript);
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error", event);
+      };
+
+      recognition.onend = () => {
+        recognizing = false;
+        micBtn.textContent = "🎤 Start Mic";
+      };
+    }
+
+    micBtn.onclick = () => {
+      if (!recognizing) {
+        recognition.start();
+        recognizing = true;
+        micBtn.textContent = "🛑 Stop Mic";
+      } else {
+        recognition.stop();
+      }
+    };
+
+    // --- PLAY VOICE (Unified Field TTS) ---
+    async function playVoice(text) {
+      const res = await fetch("/speak", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: dataText.reply })
+        body: JSON.stringify({ text })
       });
-      const audioBlob = await resVoice.blob();
+      const audioBlob = await res.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
       audio.play();
     }
-
-    document.getElementById("sendText").addEventListener("click", sendText);
-    document.getElementById("sendVoice").addEventListener("click", sendVoice);
   </script>
-</b
+</body>
+</html>
