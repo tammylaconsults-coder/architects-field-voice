@@ -1,6 +1,6 @@
 {
   "name": "architects-field-voice",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Unified Field Voice Application",
   "main": "server.js",
   "type": "module",
