@@ -1,37 +1,36 @@
 import express from "express";
 import cors from "cors";
+import { OpenAI } from "openai";
 
 const app = express();
-const PORT = process.env.PORT || 10000;
-
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public"));
 
-// Shared chat history
-let chatHistory = [];
-
-// Get chat history
-app.get("/api/history", (req, res) => {
-  res.json(chatHistory);
+// Initialize OpenAI with your key stored in Render secrets
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
 });
 
-// Send message
-app.post("/api/message", async (req, res) => {
-  const { message } = req.body;
-  if (!message) return res.status(400).json({ error: "No message sent" });
+// Endpoint to handle messages
+app.post("/message", async (req, res) => {
+  const userMessage = req.body.message;
 
-  // Add user message
-  chatHistory.push({ sender: "You", text: message });
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are the Unified Field AI, intelligent, insightful, and natural-sounding." },
+        { role: "user", content: userMessage }
+      ]
+    });
 
-  // Generate a simulated Unified Field reply
-  const reply = `Unified Field: ${message} (echoed as sound/text)`;
+    const aiReply = completion.choices[0].message.content;
+    res.json({ reply: aiReply });
 
-  chatHistory.push({ sender: "Unified Field", text: reply });
-
-  res.json({ reply });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error generating AI response." });
+  }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(10000, () => console.log("Server running on port 10000"));
