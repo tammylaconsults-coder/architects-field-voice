@@ -108,11 +108,11 @@
       input.value = "";
 
       try {
-        const res = await fetch("/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: text })
-        });
+const res = await fetch("https://architects-field-voice.onrender.com/chat", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ message: text })
+});
         const data = await res.json();
         if (data && data.reply) {
           addMessage("bot", data.reply);
