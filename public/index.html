@@ -4,138 +4,68 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Unified Field Voice</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-    #chat {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px;
-      background: #fff;
-      border-bottom: 1px solid #ddd;
-    }
-    .message {
-      margin: 10px 0;
-    }
-    .user {
-      font-weight: bold;
-      color: #1a73e8;
-    }
-    .bot {
-      font-weight: bold;
-      color: #34a853;
-    }
-    #controls {
-      display: flex;
-      padding: 10px;
-      background: #fafafa;
-      border-top: 1px solid #ddd;
-    }
-    #input {
-      flex: 1;
-      padding: 10px;
-      font-size: 16px;
-    }
-    button {
-      margin-left: 10px;
-      padding: 10px 15px;
-      font-size: 16px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    #send {
-      background: #1a73e8;
-      color: white;
-    }
-    #speak {
-      background: #34a853;
-      color: white;
-    }
-  </style>
 </head>
 <body>
-  <div id="chat"></div>
-  <div id="controls">
-    <input id="input" type="text" placeholder="Type a message..."/>
-    <button id="send">Send</button>
-    <button id="speak">🎤 Speak</button>
+  <h1>Unified Field Voice</h1>
+
+  <div id="conversation" style="border:1px solid #ccc; padding:10px; width:400px; height:300px; overflow-y:auto;">
+    <p><em>Conversation will appear here...</em></p>
   </div>
 
+  <input id="userInput" type="text" placeholder="Type your message" style="width:300px;"/>
+  <button id="sendBtn">Send</button>
+  <button id="micBtn">🎤 Speak</button>
+
   <script>
-    const chatBox = document.getElementById("chat");
-    const input = document.getElementById("input");
-    const sendBtn = document.getElementById("send");
-    const speakBtn = document.getElementById("speak");
+    const conversationDiv = document.getElementById("conversation");
+    const userInput = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const micBtn = document.getElementById("micBtn");
 
-    let recognition;
-    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
+    // ✅ Update this to your Render backend URL
+    const API_URL = "https://architects-field-voice.onrender.com/chat";
 
-      recognition.onresult = function(event) {
-        const transcript = event.results[0][0].transcript;
-        input.value = transcript;
-        sendMessage();
-      };
-    } else {
-      speakBtn.disabled = true;
-      speakBtn.textContent = "🎤 Not supported";
+    function appendMessage(sender, text) {
+      const p = document.createElement("p");
+      p.innerHTML = `<strong>${sender}:</strong> ${text}`;
+      conversationDiv.appendChild(p);
+      conversationDiv.scrollTop = conversationDiv.scrollHeight;
     }
 
-    function addMessage(sender, text) {
-      const div = document.createElement("div");
-      div.className = "message";
-      div.innerHTML = `<span class="${sender}">${sender === "user" ? "You" : "Unified Field"}:</span> ${text}`;
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    async function sendMessage() {
-      const text = input.value.trim();
-      if (!text) return;
-      addMessage("user", text);
-      input.value = "";
+    async function sendMessage(text) {
+      appendMessage("You", text);
+      userInput.value = "";
 
       try {
-const res = await fetch("https://architects-field-voice.onrender.com/chat", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ message: text })
-});
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text })
+        });
+
         const data = await res.json();
-        if (data && data.reply) {
-          addMessage("bot", data.reply);
-          speakText(data.reply);
+        if (data.reply) {
+          appendMessage("Unified Field", data.reply);
+
+          // 🔊 Play audio if backend sends base64 mp3
+          if (data.audio) {
+            const audio = new Audio("data:audio/mp3;base64," + data.audio);
+            audio.play();
+          }
         }
       } catch (err) {
-        addMessage("bot", "⚠️ Error connecting to the Unified Field.");
+        appendMessage("System", "Error contacting server.");
+        console.error(err);
       }
     }
 
-    function speakText(text) {
-      if ("speechSynthesis" in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "en-US";
-        speechSynthesis.speak(utterance);
+    sendBtn.addEventListener("click", () => {
+      if (userInput.value.trim() !== "") {
+        sendMessage(userInput.value.trim());
       }
-    }
-
-    sendBtn.addEventListener("click", sendMessage);
-    input.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendMessage();
     });
-    speakBtn.addEventListener("click", () => recognition && recognition.start());
-  </script>
-</body>
-</html>
+
+    userInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter" && userInput.value.trim() !== "") {
+        sendMessage(userInput.value.trim());
+      }
