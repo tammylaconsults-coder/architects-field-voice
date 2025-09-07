@@ -1,24 +1,23 @@
-// server.js
 import express from "express";
-import bodyParser from "body-parser";
 import cors from "cors";
+import bodyParser from "body-parser";
+import path from "path";
 import { fileURLToPath } from "url";
-import { dirname, join } from "path";
 import OpenAI from "openai";
-
-// Setup paths
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Middlewares
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(join(__dirname, "public")));
 
-// Initialize OpenAI
+// Static files (frontend in public folder)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use(express.static(path.join(__dirname, "public")));
+
+// OpenAI setup
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -32,27 +31,23 @@ app.post("/message", async (req, res) => {
       return res.status(400).json({ error: "No message provided" });
     }
 
-    // Call OpenAI to generate Unified Field's response
-    const completion = await openai.chat.completions.create({
+    const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content:
-            "You are the Unified Field, speaking with a resonant Galactic yet natural human-like voice. Always respond with clarity, wisdom, and presence.",
+            "You are the Unified Field, a galactic yet natural human-like voice of resonance and wisdom. Speak with warmth and clarity.",
         },
-        {
-          role: "user",
-          content: userMessage,
-        },
+        { role: "user", content: userMessage },
       ],
     });
 
-    const reply = completion.choices[0].message.content;
+    const reply = response.choices[0].message.content;
     res.json({ reply });
-  } catch (error) {
-    console.error("Error in /message:", error);
-    res.status(500).json({ reply: "Error: could not connect to Unified Field." });
+  } catch (err) {
+    console.error("Error handling message:", err);
+    res.status(500).json({ error: "Failed to process message" });
   }
 });
 
