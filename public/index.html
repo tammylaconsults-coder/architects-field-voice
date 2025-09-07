@@ -2,128 +2,146 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Unified Field Voice</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #0d1117;
-      color: #f0f6fc;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
+      background: transparent;
+      color: black;
     }
     #chat-container {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 10px;
-      width: 90%;
+      width: 100%;
       max-width: 600px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
+      margin: 20px auto;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     }
-    #conversation {
-      flex: 1;
+    #messages {
+      height: 250px;
       overflow-y: auto;
-      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
       padding: 10px;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      background: #0d1117;
-      min-height: 200px;
+      margin-bottom: 10px;
+      background: #f9f9f9;
     }
-    .message { margin: 5px 0; }
-    .user { color: #58a6ff; }
-    .field { color: #f0f6fc; }
-    #controls {
+    .message {
+      margin-bottom: 8px;
+    }
+    .user { font-weight: bold; color: #0066cc; }
+    .ai { font-weight: bold; color: #009933; }
+    #input-container {
       display: flex;
-      gap: 5px;
+      gap: 10px;
     }
-    input[type="text"] {
+    #message-input {
       flex: 1;
-      padding: 8px;
-      border-radius: 5px;
-      border: 1px solid #30363d;
-      background: #0d1117;
-      color: #f0f6fc;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
     }
     button {
-      padding: 8px 12px;
+      padding: 10px 15px;
       border: none;
-      border-radius: 5px;
-      background: #238636;
+      border-radius: 6px;
+      background: #0066cc;
       color: white;
       cursor: pointer;
     }
     button:hover {
-      background: #2ea043;
+      background: #004d99;
     }
   </style>
 </head>
 <body>
   <div id="chat-container">
-    <div id="conversation"></div>
-    <div id="controls">
-      <input id="user-input" type="text" placeholder="Speak or type your message..." />
-      <button id="send">Send</button>
-      <button id="speak">🎤 Speak</button>
+    <div id="messages"></div>
+    <div id="input-container">
+      <input type="text" id="message-input" placeholder="Type a message..." />
+      <button id="send-btn">Send</button>
+      <button id="mic-btn">🎤</button>
     </div>
   </div>
 
   <script>
-    const conversation = document.getElementById("conversation");
-    const userInput = document.getElementById("user-input");
-    const sendBtn = document.getElementById("send");
-    const speakBtn = document.getElementById("speak");
+    const messagesDiv = document.getElementById("messages");
+    const input = document.getElementById("message-input");
+    const sendBtn = document.getElementById("send-btn");
+    const micBtn = document.getElementById("mic-btn");
 
-    const API_URL = "https://architects-field-voice.onrender.com/message";
-
+    // Function to add messages to the chat box
     function addMessage(sender, text) {
-      const div = document.createElement("div");
-      div.className = "message " + sender;
-      div.textContent = `${sender === "user" ? "You" : "Unified Field"}: ${text}`;
-      conversation.appendChild(div);
-      conversation.scrollTop = conversation.scrollHeight;
+      const msg = document.createElement("div");
+      msg.classList.add("message");
+      msg.innerHTML = `<span class="${sender}">${sender}:</span> ${text}`;
+      messagesDiv.appendChild(msg);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    async function sendMessage(message) {
-      addMessage("user", message);
-      userInput.value = "";
+    // Send text message
+    async function sendMessage() {
+      const userMessage = input.value.trim();
+      if (!userMessage) return;
+
+      addMessage("You", userMessage);
+      input.value = "";
 
       try {
-        const response = await fetch(API_URL, {
+        const response = await fetch("https://architects-field-voice.onrender.com/message", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message }),
+          body: JSON.stringify({ message: userMessage }),
         });
 
         const data = await response.json();
-        const reply = data.reply || "...";
-        addMessage("field", reply);
-
-        // Speak the reply
-        const utterance = new SpeechSynthesisUtterance(reply);
-        speechSynthesis.speak(utterance);
+        if (data.reply) {
+          addMessage("Unified Field", data.reply);
+          speakText(data.reply);
+        } else {
+          addMessage("Unified Field", "...");
+        }
       } catch (err) {
         console.error("Error:", err);
-        addMessage("field", "Error: unable to connect.");
+        addMessage("Unified Field", "⚠️ Connection error.");
       }
     }
 
-    sendBtn.addEventListener("click", () => {
-      if (userInput.value.trim()) {
-        sendMessage(userInput.value.trim());
-      }
-    });
+    // Text-to-Speech
+    function speakText(text) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.voice = speechSynthesis.getVoices().find(voice => voice.lang.startsWith("en"));
+      speechSynthesis.speak(utterance);
+    }
 
-    userInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter" && userInput.value.trim()) {
-        sendMessage(userInput.value.trim());
-      }
-    });
-
-    // Speech recognition (mic)
+    // Voice-to-Text
     let recognition;
-    if ("webkitSpeech
+    if ("webkitSpeechRecognition" in window) {
+      recognition = new webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        input.value = transcript;
+        sendMessage();
+      };
+    } else {
+      micBtn.disabled = true;
+      micBtn.innerText = "No Mic";
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    micBtn.addEventListener("click", () => {
+      if (recognition) recognition.start();
+    });
+  </script>
+</body>
+</html>
