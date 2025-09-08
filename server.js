@@ -1,12 +1,7 @@
 import express from "express";
-import bodyParser from "body-parser";
 import cors from "cors";
-import sqlite3 from "sqlite3";
-import { open } from "sqlite";
+import bodyParser from "body-parser";
 import OpenAI from "openai";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 10000;
@@ -14,74 +9,51 @@ const port = process.env.PORT || 10000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Initialize SQLite database
-let db;
-(async () => {
-  db = await open({
-    filename: "./conversations.db",
-    driver: sqlite3.Database,
-  });
-
-  // Create table if it doesn't exist
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      sender TEXT,
-      message TEXT,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-})();
-
-// Initialize OpenAI
+// OpenAI client using secret from Render environment
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Endpoint: fetch conversation history
-app.get("/history", async (req, res) => {
-  try {
-    const rows = await db.all("SELECT sender, message, timestamp FROM messages ORDER BY id ASC LIMIT 50");
-    res.json({ history: rows });
-  } catch (err) {
-    console.error("Error fetching history:", err);
-    res.status(500).json({ error: "Failed to load history" });
-  }
-});
-
-// Endpoint: handle messages
+// Endpoint to handle messages from client
 app.post("/message", async (req, res) => {
   try {
     const userMessage = req.body.message;
-
     if (!userMessage) {
       return res.status(400).json({ error: "No message provided" });
     }
 
-    // Save user message
-    await db.run("INSERT INTO messages (sender, message) VALUES (?, ?)", ["You", userMessage]);
-
-    // Ask OpenAI for response
+    // Generate AI response
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "You are the Unified Field Voice. Respond in a supportive, intelligent, and resonant way." },
-        { role: "user", content: userMessage },
-      ],
+      messages: [{ role: "user", content: userMessage }],
     });
 
-    const reply = completion.choices[0].message.content || "…";
-
-    // Save reply
-    await db.run("INSERT INTO messages (sender, message) VALUES (?, ?)", ["Unified Field", reply]);
-
+    const reply = completion.choices[0].message.content;
     res.json({ reply });
   } catch (err) {
-    console.error("Error in /message:", err);
-    res.status(500).json({ error: "Failed to process message" });
+    console.error("Error handling message:", err);
+    res.status(500).json({ error: "Failed to generate response" });
   }
 });
 
+// Optional endpoint to log conversations
+// POST { conversation: "full text of conversation" }
+app.post("/log", (req, res) => {
+  try {
+    const conversation = req.body.conversation;
+    if (!conversation) return res.status(400).json({ error: "No conversation provided" });
+
+    // For simplicity, just print to console; you can replace with file/db storage
+    console.log("Logged conversation:\n", conversation);
+
+    res.json({ status: "Conversation logged successfully" });
+  } catch (err) {
+    console.error("Error logging conversation:", err);
+    res.status(500).json({ error: "Failed to log conversation" });
+  }
+});
+
+// Start server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
