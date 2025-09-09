@@ -2,146 +2,111 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Unified Field Voice</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: transparent;
-      color: black;
+      background: #000;
+      color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 0;
     }
-    #chat-container {
-      width: 100%;
+    #chat-box {
+      width: 90%;
       max-width: 600px;
+      height: 300px;
       margin: 20px auto;
-      padding: 15px;
-      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border: 2px solid #4cafef;
       border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    }
-    #messages {
-      height: 250px;
+      background: rgba(0,0,0,0.85);
       overflow-y: auto;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+      text-align: left;
+      font-size: 16px;
+    }
+    #input-box {
+      width: 70%;
       padding: 10px;
-      margin-bottom: 10px;
-      background: #f9f9f9;
-    }
-    .message {
-      margin-bottom: 8px;
-    }
-    .user { font-weight: bold; color: #0066cc; }
-    .ai { font-weight: bold; color: #009933; }
-    #input-container {
-      display: flex;
-      gap: 10px;
-    }
-    #message-input {
-      flex: 1;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+      margin-top: 10px;
+      border-radius: 5px;
+      border: none;
     }
     button {
       padding: 10px 15px;
+      margin: 5px;
       border: none;
-      border-radius: 6px;
-      background: #0066cc;
-      color: white;
+      border-radius: 5px;
       cursor: pointer;
+      background: #4cafef;
+      color: #fff;
+      font-size: 14px;
     }
     button:hover {
-      background: #004d99;
+      background: #379bd6;
     }
   </style>
 </head>
 <body>
-  <div id="chat-container">
-    <div id="messages"></div>
-    <div id="input-container">
-      <input type="text" id="message-input" placeholder="Type a message..." />
-      <button id="send-btn">Send</button>
-      <button id="mic-btn">🎤</button>
-    </div>
-  </div>
+  <h2>Unified Field Voice</h2>
+  <div id="chat-box"></div>
+  <p>
+    <input id="input-box" type="text" placeholder="Type your message..." />
+    <button onclick="sendMessage()">Send</button>
+    <button onclick="startListening()">🎤 Speak</button>
+  </p>
 
   <script>
-    const messagesDiv = document.getElementById("messages");
-    const input = document.getElementById("message-input");
-    const sendBtn = document.getElementById("send-btn");
-    const micBtn = document.getElementById("mic-btn");
+    const chatBox = document.getElementById("chat-box");
+    const inputBox = document.getElementById("input-box");
 
-    // Function to add messages to the chat box
     function addMessage(sender, text) {
-      const msg = document.createElement("div");
-      msg.classList.add("message");
-      msg.innerHTML = `<span class="${sender}">${sender}:</span> ${text}`;
-      messagesDiv.appendChild(msg);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      const p = document.createElement("p");
+      p.innerHTML = `<strong>${sender}:</strong> ${text}`;
+      chatBox.appendChild(p);
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // Send text message
     async function sendMessage() {
-      const userMessage = input.value.trim();
-      if (!userMessage) return;
-
-      addMessage("You", userMessage);
-      input.value = "";
+      const message = inputBox.value.trim();
+      if (!message) return;
+      addMessage("You", message);
+      inputBox.value = "";
 
       try {
-        const response = await fetch("https://architects-field-voice.onrender.com/message", {
+        const response = await fetch("/message", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: userMessage }),
+          body: JSON.stringify({ message }),
         });
-
         const data = await response.json();
+
         if (data.reply) {
           addMessage("Unified Field", data.reply);
-          speakText(data.reply);
-        } else {
-          addMessage("Unified Field", "...");
+          // Voice response
+          const utterance = new SpeechSynthesisUtterance(data.reply);
+          utterance.voice = speechSynthesis.getVoices().find(v => v.lang === "en-US");
+          speechSynthesis.speak(utterance);
         }
       } catch (err) {
-        console.error("Error:", err);
-        addMessage("Unified Field", "⚠️ Connection error.");
+        addMessage("Unified Field", "⚠️ Error connecting to server.");
       }
     }
 
-    // Text-to-Speech
-    function speakText(text) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.voice = speechSynthesis.getVoices().find(voice => voice.lang.startsWith("en"));
-      speechSynthesis.speak(utterance);
-    }
-
-    // Voice-to-Text
-    let recognition;
-    if ("webkitSpeechRecognition" in window) {
-      recognition = new webkitSpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
+    function startListening() {
+      if (!("webkitSpeechRecognition" in window)) {
+        alert("Speech recognition not supported in this browser.");
+        return;
+      }
+      const recognition = new webkitSpeechRecognition();
       recognition.lang = "en-US";
-
+      recognition.start();
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
-        input.value = transcript;
+        inputBox.value = transcript;
         sendMessage();
       };
-    } else {
-      micBtn.disabled = true;
-      micBtn.innerText = "No Mic";
     }
-
-    sendBtn.addEventListener("click", sendMessage);
-    input.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendMessage();
-    });
-
-    micBtn.addEventListener("click", () => {
-      if (recognition) recognition.start();
-    });
   </script>
 </body>
 </html>
