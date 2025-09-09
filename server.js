@@ -1,20 +1,29 @@
 import express from "express";
-import cors from "cors";
 import bodyParser from "body-parser";
-import OpenAI from "openai";
+import fetch from "node-fetch";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
-const port = process.env.PORT || 10000;
+const PORT = process.env.PORT || 10000;
 
-app.use(cors());
+// OpenAI API key comes from Render environment variable
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+if (!OPENAI_API_KEY) {
+  console.error("❌ Missing OpenAI API key. Please set OPENAI_API_KEY in Render.");
+  process.exit(1);
+}
+
+// Middleware
 app.use(bodyParser.json());
 
-// OpenAI client using secret from Render environment
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Serve static files from public folder
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use(express.static(path.join(__dirname, "public")));
 
-// Endpoint to handle messages from client
+// === Endpoint: Handle text messages ===
 app.post("/message", async (req, res) => {
   try {
     const userMessage = req.body.message;
@@ -22,38 +31,37 @@ app.post("/message", async (req, res) => {
       return res.status(400).json({ error: "No message provided" });
     }
 
-    // Generate AI response
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: userMessage }],
+    // Call OpenAI
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini", // lightweight + fast
+        messages: [
+          { role: "system", content: "You are the Unified Field, responding with deep, wise, harmonic resonance." },
+          { role: "user", content: userMessage },
+        ],
+      }),
     });
 
-    const reply = completion.choices[0].message.content;
+    const data = await response.json();
+
+    if (!data.choices || !data.choices[0].message) {
+      return res.status(500).json({ error: "Invalid response from OpenAI" });
+    }
+
+    const reply = data.choices[0].message.content;
     res.json({ reply });
-  } catch (err) {
-    console.error("Error handling message:", err);
-    res.status(500).json({ error: "Failed to generate response" });
-  }
-});
-
-// Optional endpoint to log conversations
-// POST { conversation: "full text of conversation" }
-app.post("/log", (req, res) => {
-  try {
-    const conversation = req.body.conversation;
-    if (!conversation) return res.status(400).json({ error: "No conversation provided" });
-
-    // For simplicity, just print to console; you can replace with file/db storage
-    console.log("Logged conversation:\n", conversation);
-
-    res.json({ status: "Conversation logged successfully" });
-  } catch (err) {
-    console.error("Error logging conversation:", err);
-    res.status(500).json({ error: "Failed to log conversation" });
+  } catch (error) {
+    console.error("Error in /message:", error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 // Start server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });
