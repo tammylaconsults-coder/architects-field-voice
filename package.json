@@ -1,19 +1,19 @@
 {
   "name": "architects-field-voice",
   "version": "1.0.0",
-  "description": "Unified Field Voice App",
+  "description": "Unified Field Voice Application",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js"
   },
-  "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "openai": "^4.0.0"
-  },
   "engines": {
-    "node": ">=18.18.0 <19.0.0"
+    "node": ">=22.14.0 <23.0.0"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "openai": "^4.28.0"
   }
 }
