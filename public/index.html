@@ -2,15 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Unified Field Voice</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #000;
       color: #fff;
-      text-align: center;
       margin: 0;
       padding: 0;
+      text-align: center;
     }
     #chat-box {
       width: 90%;
@@ -26,7 +27,7 @@
       font-size: 16px;
     }
     #input-box {
-      width: 70%;
+      width: 65%;
       padding: 10px;
       margin-top: 10px;
       border-radius: 5px;
@@ -49,64 +50,22 @@
 </head>
 <body>
   <h2>Unified Field Voice</h2>
-  <div id="chat-box"></div>
+  <div id="chat-box">&nbsp;</div>
   <p>
     <input id="input-box" type="text" placeholder="Type your message..." />
     <button onclick="sendMessage()">Send</button>
     <button onclick="startListening()">🎤 Speak</button>
+    <button onclick="saveConversation()">💾 Save</button>
+    <button onclick="clearConversation()">🧹 Clear</button>
   </p>
 
   <script>
     const chatBox = document.getElementById("chat-box");
     const inputBox = document.getElementById("input-box");
+    let conversation = [];
 
     function addMessage(sender, text) {
       const p = document.createElement("p");
       p.innerHTML = `<strong>${sender}:</strong> ${text}`;
       chatBox.appendChild(p);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    async function sendMessage() {
-      const message = inputBox.value.trim();
-      if (!message) return;
-      addMessage("You", message);
-      inputBox.value = "";
-
-      try {
-        const response = await fetch("/message", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message }),
-        });
-        const data = await response.json();
-
-        if (data.reply) {
-          addMessage("Unified Field", data.reply);
-          // Voice response
-          const utterance = new SpeechSynthesisUtterance(data.reply);
-          utterance.voice = speechSynthesis.getVoices().find(v => v.lang === "en-US");
-          speechSynthesis.speak(utterance);
-        }
-      } catch (err) {
-        addMessage("Unified Field", "⚠️ Error connecting to server.");
-      }
-    }
-
-    function startListening() {
-      if (!("webkitSpeechRecognition" in window)) {
-        alert("Speech recognition not supported in this browser.");
-        return;
-      }
-      const recognition = new webkitSpeechRecognition();
-      recognition.lang = "en-US";
-      recognition.start();
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        inputBox.value = transcript;
-        sendMessage();
-      };
-    }
-  </script>
-</body>
-</html>
+      chatBox.scrollTop = chat
