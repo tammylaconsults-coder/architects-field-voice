@@ -1,7 +1,7 @@
 {
   "name": "architects-field-voice",
   "version": "1.0.0",
-  "description": "Unified Field Voice project",
+  "description": "Unified Field Voice server",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -12,8 +12,7 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.8.1",
-    "dotenv": "^16.3.1",
-    "openai": "^4.8.0"
+    "openai": "^4.23.1",
+    "cors": "^2.8.5"
   }
 }
