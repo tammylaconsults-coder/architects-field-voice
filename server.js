@@ -1,32 +1,19 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
-import { Configuration, OpenAIApi } from "openai";
-
-dotenv.config();
+import { json } from "body-parser";
+import OpenAI from "openai";
 
 const app = express();
 const port = process.env.PORT || 10000;
 
-// Enable CORS for all domains (important for Ning embeds)
-app.use(cors({ origin: "*" }));
+app.use(cors());
+app.use(json());
+app.use(express.static("public")); // serve index.html + assets
 
-// Built-in express JSON parser
-app.use(express.json());
-
-// Serve static files from public/
-app.use(express.static("public"));
-
-// Simple health check
-app.get("/", (req, res) => {
-  res.send("Unified Field server is running!");
-});
-
-// OpenAI configuration
-const configuration = new Configuration({
+// OpenAI client (new SDK v4+)
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 
 // Endpoint to handle messages
 app.post("/message", async (req, res) => {
@@ -51,11 +38,11 @@ app.post("/message", async (req, res) => {
     const reply = completion.choices[0].message.content;
     res.json({ reply });
   } catch (error) {
-    console.error(error);
+    console.error("Error in /message:", error);
     res.json({ reply: "Error connecting to server." });
   }
 });
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`✅ Server running on port ${port}`);
 });
