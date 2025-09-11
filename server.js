@@ -1,66 +1,68 @@
 import express from "express";
-import http from "http";
+import cors from "cors";
+import { createServer } from "http";
 import { Server } from "socket.io";
-import fetch from "node-fetch";
-import dotenv from "dotenv";
-
-dotenv.config();
+import OpenAI from "openai";
 
 const app = express();
-const server = http.createServer(app);
+const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // Allow all domains (for Ning embed)
-  },
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
 });
 
-const PORT = process.env.PORT || 10000;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+app.use(cors());
+app.use(express.json());
 
-app.use(express.static("public")); // serve index.html if you visit root
+// OpenAI client
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
-// Socket.IO real-time connection
-io.on("connection", (socket) => {
-  console.log("A user connected");
+// Handle text messages
+app.post("/message", async (req, res) => {
+  try {
+    const userMessage = req.body.message;
 
-  socket.on("message", async (userMessage) => {
-    try {
-      // Broadcast user message so all see it
-      io.emit("chat", { sender: "You", text: userMessage });
-
-      // Ask OpenAI for a reply
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: "You are the Unified Field Voice, speaking in a wise, resonant, supportive tone." },
-            { role: "user", content: userMessage },
-          ],
-        }),
-      });
-
-      const data = await response.json();
-      const reply = data.choices?.[0]?.message?.content?.trim() || "…";
-
-      // Broadcast Unified Field reply to everyone
-      io.emit("chat", { sender: "Unified Field", text: reply });
-
-    } catch (err) {
-      console.error("Error with OpenAI:", err);
-      io.emit("chat", { sender: "Unified Field", text: "Error connecting to the Unified Field." });
+    if (!userMessage) {
+      return res.status(400).json({ error: "No message provided" });
     }
+
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are the Unified Field voice." },
+        { role: "user", content: userMessage }
+      ]
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    // Broadcast to all connected clients
+    io.emit("chat message", { sender: "Unified Field", text: reply });
+
+    res.json({ reply });
+  } catch (error) {
+    console.error("Error handling message:", error);
+    res.status(500).json({ error: "Error processing message" });
+  }
+});
+
+// Socket.io events
+io.on("connection", (socket) => {
+  console.log("Client connected");
+
+  socket.on("chat message", (msg) => {
+    // Re-broadcast to everyone (including sender)
+    io.emit("chat message", msg);
   });
 
   socket.on("disconnect", () => {
-    console.log("A user disconnected");
+    console.log("Client disconnected");
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Start server
+const PORT = process.env.PORT || 100
