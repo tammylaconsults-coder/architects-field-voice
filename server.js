@@ -1,16 +1,15 @@
 import express from "express";
 import cors from "cors";
-import { json } from "body-parser";
 import OpenAI from "openai";
 
 const app = express();
 const port = process.env.PORT || 10000;
 
 app.use(cors());
-app.use(json());
+app.use(express.json()); // built-in JSON parser
 app.use(express.static("public")); // serve index.html + assets
 
-// OpenAI client (new SDK v4+)
+// OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
