@@ -1,47 +1,56 @@
 import express from "express";
-import cors from "cors";
+import http from "http";
+import { Server } from "socket.io";
 import OpenAI from "openai";
 
 const app = express();
-const port = process.env.PORT || 10000;
+const server = http.createServer(app);
+const io = new Server(server);
 
-app.use(cors());
-app.use(express.json()); // built-in JSON parser
-app.use(express.static("public")); // serve index.html + assets
-
-// OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Endpoint to handle messages
-app.post("/message", async (req, res) => {
-  try {
-    const userMessage = req.body.message;
-    if (!userMessage) {
-      return res.status(400).json({ reply: "No message provided" });
+app.use(express.static("public"));
+
+// Shared chat history (kept in memory)
+let chatHistory = [];
+
+// When a client connects
+io.on("connection", (socket) => {
+  console.log("Client connected");
+
+  // Send them the current history
+  socket.emit("history", chatHistory);
+
+  // When a new message comes in
+  socket.on("message", async (msg) => {
+    console.log("Message received:", msg);
+
+    // Add user message to history
+    chatHistory.push({ role: "user", content: msg });
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: chatHistory,
+      });
+
+      const reply = response.choices[0].message.content;
+
+      // Add Unified Field reply to history
+      chatHistory.push({ role: "assistant", content: reply });
+
+      // Broadcast new reply to all clients
+      io.emit("message", reply);
+    } catch (error) {
+      console.error("Error:", error);
+      socket.emit("message", "⚠️ Unified Field is quiet right now...");
     }
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are the Unified Field Voice, responding thoughtfully and harmonically.",
-        },
-        { role: "user", content: userMessage },
-      ],
-    });
-
-    const reply = completion.choices[0].message.content;
-    res.json({ reply });
-  } catch (error) {
-    console.error("Error in /message:", error);
-    res.json({ reply: "Error connecting to server." });
-  }
+  });
 });
 
-app.listen(port, () => {
-  console.log(`✅ Server running on port ${port}`);
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
