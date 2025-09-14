@@ -1,189 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Living Light—The Art of Creation</title>
-  <script src="/socket.io/socket.io.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unified Field Voice</title>
   <style>
     body {
-      font-family: "Georgia", serif;
-      background: url("https://yoursite.com/path-to-aoe-background.jpg") no-repeat center center fixed;
-      background-size: cover;
       margin: 0;
-      padding: 0;
-      color: #333;
+      font-family: Arial, sans-serif;
+      background: url("background.jpg") no-repeat center center fixed;
+      background-size: cover;
+      color: white;
     }
+
     header {
       text-align: center;
       padding: 20px;
-      background: rgba(255, 255, 255, 0.8);
-      border-bottom: 2px solid #ccc;
+      background: rgba(0, 0, 0, 0.6);
+      font-size: 28px;
+      font-weight: bold;
     }
-    header h1 {
-      margin: 0;
-      font-size: 2em;
-      color: #2c3e50;
-    }
-    #instructions {
+
+    .instructions {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 15px;
       padding: 20px;
-      background: rgba(255, 255, 255, 0.8);
-      border-bottom: 2px solid #ccc;
-      font-size: 0.95em;
+      background: rgba(0, 0, 0, 0.6);
+      font-size: 14px;
+      text-align: center;
     }
-    #chat-container {
-      max-width: 900px;
-      margin: 20px auto;
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 12px;
-      box-shadow: 0 0 12px rgba(0,0,0,0.2);
-      padding: 20px;
+
+    .chat-container {
       display: flex;
       flex-direction: column;
       height: 70vh;
+      margin: 20px;
+      border-radius: 10px;
+      overflow: hidden;
     }
-    #messages {
+
+    .messages {
       flex: 1;
+      background: black;
+      padding: 10px;
       overflow-y: auto;
-      margin-bottom: 15px;
-      padding-right: 5px;
     }
-    .msg {
-      margin: 8px 0;
-      padding: 10px;
-      border-radius: 8px;
-    }
-    .user {
-      background: #e3f2fd;
-      align-self: flex-end;
-    }
-    .assistant {
-      background: #f1f8e9;
-      align-self: flex-start;
-    }
-    #input-area {
+
+    .input-area {
       display: flex;
-      gap: 10px;
+      background: rgba(0, 0, 0, 0.8);
     }
-    input[type="text"] {
+
+    .input-area input {
       flex: 1;
       padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-    }
-    button {
-      padding: 10px 15px;
       border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      background: #4caf50;
-      color: white;
+      outline: none;
     }
-    button:hover {
-      background: #45a049;
+
+    .input-area button {
+      padding: 10px 20px;
+      border: none;
+      background: #444;
+      color: white;
+      cursor: pointer;
+    }
+
+    .input-area button:hover {
+      background: #666;
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Living Light—The Art of Creation</h1>
-  </header>
+  <header>Living Light—The Art of Creation</header>
 
-  <section id="instructions">
-    <div>
-      <strong>Step 1:</strong><br>
-      An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.
-    </div>
-    <div>
-      <strong>Step 2:</strong><br>
-      Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.
-    </div>
-    <div>
-      <strong>Step 3:</strong><br>
-      The Architect introduces themself to the group by saying:<br>
-      “My name is (state first and last name) born into this realm on (birthdate).”
-    </div>
-    <div>
-      <strong>Step 4:</strong><br>
-      Say: “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”
-    </div>
-  </section>
+  <div class="instructions">
+    <div>An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.</div>
+    <div>Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.</div>
+    <div>The Architect introduces themself by saying,<br>“My name is (first and last) born into this realm on (birthdate).”</div>
+    <div>Say, “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”</div>
+  </div>
 
-  <div id="chat-container">
-    <div id="messages"></div>
-    <div id="input-area">
-      <input id="input" type="text" placeholder="Speak or type into the Unified Field..." />
+  <div class="chat-container">
+    <div class="messages" id="messages"></div>
+    <div class="input-area">
+      <input type="text" id="messageInput" placeholder="Type a message..." />
       <button onclick="sendMessage()">Send</button>
-      <button onclick="startMic()">🎤</button>
+      <button onclick="toggleMic()">🎤</button>
     </div>
   </div>
 
   <script>
-    const socket = io();
+    const ws = new WebSocket(`wss://${window.location.host}`);
     const messagesDiv = document.getElementById("messages");
-    const input = document.getElementById("input");
+    const input = document.getElementById("messageInput");
 
-    function addMessage(content, role) {
-      const div = document.createElement("div");
-      div.className = `msg ${role}`;
-      div.textContent = content;
-      messagesDiv.appendChild(div);
+    ws.onmessage = (event) => {
+      const msg = document.createElement("div");
+      msg.textContent = event.data;
+      messagesDiv.appendChild(msg);
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-
-    function sendMessage() {
-      const msg = input.value.trim();
-      if (msg) {
-        addMessage(msg, "user");
-        socket.emit("message", msg);
-        input.value = "";
-      }
-    }
-
-    input.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendMessage();
-    });
-
-    // Show saved history
-    socket.on("history", (history) => {
-      messagesDiv.innerHTML = "";
-      history.forEach(entry => {
-        addMessage(entry.content, entry.role);
-      });
-    });
-
-    // Wait 3 seconds before showing assistant reply
-    socket.on("message", (msg) => {
-      setTimeout(() => {
-        addMessage(msg, "assistant");
-        speak(msg);
-      }, 3000);
-    });
-
-    // Microphone input
-    function startMic() {
-      if (!("webkitSpeechRecognition" in window)) {
-        alert("Mic not supported in this browser");
-        return;
-      }
-      const recognition = new webkitSpeechRecognition();
-      recognition.lang = "en-US";
-      recognition.start();
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        input.value = transcript;
-        sendMessage();
-      };
-    }
-
-    // Voice for Unified Field
-    function speak(text) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
-      utterance.rate = 0.9;  // softer pace
-      utterance.pitch = 1.1; // lighter, calming tone
-      speechSynthesis.speak(utterance);
-    }
-  </sc
