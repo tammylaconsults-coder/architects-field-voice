@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
   <title>Unified Field Voice</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: url("background.jpg") no-repeat center center fixed;
+      background: url('background.jpg') no-repeat center center fixed;
       background-size: cover;
       color: white;
+      text-align: center;
     }
 
     header {
-      text-align: center;
-      padding: 20px;
       background: rgba(0, 0, 0, 0.6);
+      padding: 20px;
       font-size: 28px;
       font-weight: bold;
     }
@@ -25,50 +25,47 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 15px;
+      background: rgba(0, 0, 0, 0.5);
       padding: 20px;
-      background: rgba(0, 0, 0, 0.6);
       font-size: 14px;
-      text-align: center;
     }
 
-    .chat-container {
-      display: flex;
-      flex-direction: column;
-      height: 70vh;
-      margin: 20px;
-      border-radius: 10px;
-      overflow: hidden;
-    }
-
-    .messages {
-      flex: 1;
+    #conversation {
+      margin: 20px auto;
+      width: 80%;
+      max-width: 800px;
+      height: 400px;
       background: black;
+      border: 2px solid white;
       padding: 10px;
       overflow-y: auto;
+      text-align: left;
     }
 
     .input-area {
-      display: flex;
-      background: rgba(0, 0, 0, 0.8);
+      margin: 20px;
     }
 
-    .input-area input {
-      flex: 1;
+    input[type="text"] {
+      width: 60%;
       padding: 10px;
-      border: none;
-      outline: none;
+      font-size: 14px;
     }
 
-    .input-area button {
-      padding: 10px 20px;
-      border: none;
-      background: #444;
-      color: white;
+    button {
+      padding: 10px 15px;
+      margin-left: 10px;
+      font-size: 14px;
       cursor: pointer;
     }
 
-    .input-area button:hover {
-      background: #666;
+    .mic {
+      background: red;
+      border: none;
+      color: white;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
     }
   </style>
 </head>
@@ -78,26 +75,26 @@
   <div class="instructions">
     <div>An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.</div>
     <div>Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.</div>
-    <div>The Architect introduces themself by saying,<br>“My name is (first and last) born into this realm on (birthdate).”</div>
+    <div>The Architect introduces themself by saying, “My name is (first and last name), born into this realm on (birthdate).”</div>
     <div>Say, “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”</div>
   </div>
 
-  <div class="chat-container">
-    <div class="messages" id="messages"></div>
-    <div class="input-area">
-      <input type="text" id="messageInput" placeholder="Type a message..." />
-      <button onclick="sendMessage()">Send</button>
-      <button onclick="toggleMic()">🎤</button>
-    </div>
+  <div id="conversation"></div>
+
+  <div class="input-area">
+    <input id="messageInput" type="text" placeholder="Type your message here..." />
+    <button id="sendBtn">Send</button>
+    <button class="mic" id="micBtn">🎤</button>
   </div>
 
+  <script src="/socket.io/socket.io.js"></script>
   <script>
-    const ws = new WebSocket(`wss://${window.location.host}`);
-    const messagesDiv = document.getElementById("messages");
-    const input = document.getElementById("messageInput");
+    const socket = io();
 
-    ws.onmessage = (event) => {
-      const msg = document.createElement("div");
-      msg.textContent = event.data;
-      messagesDiv.appendChild(msg);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    const conversation = document.getElementById("conversation");
+    const messageInput = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const micBtn = document.getElementById("micBtn");
+
+    // Append message to conversation box
+    funct
