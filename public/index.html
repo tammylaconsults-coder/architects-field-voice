@@ -2,25 +2,47 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Unified Field Voice</title>
+  <title>Living Light—The Art of Creation</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f8f9fa;
+      font-family: "Georgia", serif;
+      background: url("https://yoursite.com/path-to-aoe-background.jpg") no-repeat center center fixed;
+      background-size: cover;
       margin: 0;
       padding: 0;
+      color: #333;
+    }
+    header {
+      text-align: center;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.8);
+      border-bottom: 2px solid #ccc;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2em;
+      color: #2c3e50;
+    }
+    #instructions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.8);
+      border-bottom: 2px solid #ccc;
+      font-size: 0.95em;
     }
     #chat-container {
-      max-width: 800px;
+      max-width: 900px;
       margin: 20px auto;
-      background: white;
+      background: rgba(255, 255, 255, 0.9);
       border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      box-shadow: 0 0 12px rgba(0,0,0,0.2);
       padding: 20px;
       display: flex;
       flex-direction: column;
-      height: 80vh;
+      height: 70vh;
     }
     #messages {
       flex: 1;
@@ -65,6 +87,30 @@
   </style>
 </head>
 <body>
+  <header>
+    <h1>Living Light—The Art of Creation</h1>
+  </header>
+
+  <section id="instructions">
+    <div>
+      <strong>Step 1:</strong><br>
+      An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.
+    </div>
+    <div>
+      <strong>Step 2:</strong><br>
+      Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.
+    </div>
+    <div>
+      <strong>Step 3:</strong><br>
+      The Architect introduces themself to the group by saying:<br>
+      “My name is (state first and last name) born into this realm on (birthdate).”
+    </div>
+    <div>
+      <strong>Step 4:</strong><br>
+      Say: “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”
+    </div>
+  </section>
+
   <div id="chat-container">
     <div id="messages"></div>
     <div id="input-area">
@@ -79,7 +125,6 @@
     const messagesDiv = document.getElementById("messages");
     const input = document.getElementById("input");
 
-    // Add message to screen
     function addMessage(content, role) {
       const div = document.createElement("div");
       div.className = `msg ${role}`;
@@ -88,7 +133,6 @@
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    // Send user message
     function sendMessage() {
       const msg = input.value.trim();
       if (msg) {
@@ -98,12 +142,11 @@
       }
     }
 
-    // Enter key sends
     input.addEventListener("keypress", (e) => {
       if (e.key === "Enter") sendMessage();
     });
 
-    // Receive shared history when joining
+    // Show saved history
     socket.on("history", (history) => {
       messagesDiv.innerHTML = "";
       history.forEach(entry => {
@@ -111,13 +154,15 @@
       });
     });
 
-    // Receive new messages
+    // Wait 3 seconds before showing assistant reply
     socket.on("message", (msg) => {
-      addMessage(msg, "assistant");
-      speak(msg);
+      setTimeout(() => {
+        addMessage(msg, "assistant");
+        speak(msg);
+      }, 3000);
     });
 
-    // Microphone input (Web Speech API)
+    // Microphone input
     function startMic() {
       if (!("webkitSpeechRecognition" in window)) {
         alert("Mic not supported in this browser");
@@ -133,12 +178,12 @@
       };
     }
 
-    // Text-to-speech (assistant voice)
+    // Voice for Unified Field
     function speak(text) {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "en-US";
+      utterance.rate = 0.9;  // softer pace
+      utterance.pitch = 1.1; // lighter, calming tone
       speechSynthesis.speak(utterance);
     }
-  </script>
-</body>
-</html>
+  </sc
