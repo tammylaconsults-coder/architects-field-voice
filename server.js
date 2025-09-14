@@ -1,71 +1,52 @@
 import express from "express";
-import http from "http";
+import { createServer } from "http";
 import { Server } from "socket.io";
-import fs from "fs";
 import path from "path";
-import OpenAI from "openai";
+import { fileURLToPath } from "url";
+
+// Boilerplate for ES modules (__dirname not available by default)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-const server = http.createServer(app);
+const server = createServer(app);
 const io = new Server(server);
 
-const __dirname = path.resolve();
+// Serve static files from "public" (index.html, CSS, background.jpg, etc.)
 app.use(express.static(path.join(__dirname, "public")));
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Store chat history (resets when server restarts)
+let chatHistory = [];
 
-let conversationHistory = [];
-
-// 📌 Save messages to daily log
-function saveLog(role, content) {
-  const date = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-  const logDir = path.join(__dirname, "logs");
-  const logFile = path.join(logDir, `${date}.txt`);
-
-  if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir);
-  }
-
-  const entry = `[${new Date().toLocaleTimeString()}] ${role.toUpperCase()}: ${content}\n`;
-
-  fs.appendFile(logFile, entry, (err) => {
-    if (err) console.error("Error writing to log file:", err);
-  });
-}
-
+// Handle WebSocket connections
 io.on("connection", (socket) => {
-  console.log("User connected");
+  console.log("✅ A user connected:", socket.id);
 
-  // send history to new user
-  socket.emit("history", conversationHistory);
+  // Send chat history to new user
+  socket.emit("chat history", chatHistory);
 
-  socket.on("message", async (msg) => {
-    console.log("Received:", msg);
+  // Handle new messages
+  socket.on("chat message", (msg) => {
+    const message = {
+      id: socket.id,
+      text: msg,
+      timestamp: new Date().toISOString()
+    };
 
-    conversationHistory.push({ role: "user", content: msg });
-    saveLog("user", msg);
+    // Save to history
+    chatHistory.push(message);
 
-    try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: conversationHistory,
-      });
+    // Broadcast to everyone
+    io.emit("chat message", message);
+  });
 
-      const reply = completion.choices[0].message.content;
-      conversationHistory.push({ role: "assistant", content: reply });
-      saveLog("assistant", reply);
-
-      io.emit("message", reply);
-    } catch (err) {
-      console.error("OpenAI error:", err);
-      io.emit("message", "⚠️ Unified Field could not respond. Check API quota.");
-    }
+  socket.on("disconnect", () => {
+    console.log("❌ A user disconnected:", socket.id);
   });
 });
 
+// Use Render's assigned port or 3000 locally
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
