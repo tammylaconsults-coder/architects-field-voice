@@ -1,7 +1,7 @@
 {
   "name": "architects-field-voice",
   "version": "1.0.0",
-  "description": "Unified Field Voice conversation app",
+  "description": "Unified Field group conversation app with mic, text, and background",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -9,6 +9,6 @@
   },
   "dependencies": {
     "express": "^4.19.2",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.7.5"
   }
 }
