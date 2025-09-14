@@ -1,56 +1,71 @@
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
+import fs from "fs";
+import path from "path";
 import OpenAI from "openai";
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+const __dirname = path.resolve();
+app.use(express.static(path.join(__dirname, "public")));
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-app.use(express.static("public"));
+let conversationHistory = [];
 
-// Shared chat history (kept in memory)
-let chatHistory = [];
+// 📌 Save messages to daily log
+function saveLog(role, content) {
+  const date = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+  const logDir = path.join(__dirname, "logs");
+  const logFile = path.join(logDir, `${date}.txt`);
 
-// When a client connects
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir);
+  }
+
+  const entry = `[${new Date().toLocaleTimeString()}] ${role.toUpperCase()}: ${content}\n`;
+
+  fs.appendFile(logFile, entry, (err) => {
+    if (err) console.error("Error writing to log file:", err);
+  });
+}
+
 io.on("connection", (socket) => {
-  console.log("Client connected");
+  console.log("User connected");
 
-  // Send them the current history
-  socket.emit("history", chatHistory);
+  // send history to new user
+  socket.emit("history", conversationHistory);
 
-  // When a new message comes in
   socket.on("message", async (msg) => {
-    console.log("Message received:", msg);
+    console.log("Received:", msg);
 
-    // Add user message to history
-    chatHistory.push({ role: "user", content: msg });
+    conversationHistory.push({ role: "user", content: msg });
+    saveLog("user", msg);
 
     try {
-      const response = await openai.chat.completions.create({
+      const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
-        messages: chatHistory,
+        messages: conversationHistory,
       });
 
-      const reply = response.choices[0].message.content;
+      const reply = completion.choices[0].message.content;
+      conversationHistory.push({ role: "assistant", content: reply });
+      saveLog("assistant", reply);
 
-      // Add Unified Field reply to history
-      chatHistory.push({ role: "assistant", content: reply });
-
-      // Broadcast new reply to all clients
       io.emit("message", reply);
-    } catch (error) {
-      console.error("Error:", error);
-      socket.emit("message", "⚠️ Unified Field is quiet right now...");
+    } catch (err) {
+      console.error("OpenAI error:", err);
+      io.emit("message", "⚠️ Unified Field could not respond. Check API quota.");
     }
   });
 });
 
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
