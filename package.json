@@ -1,14 +1,17 @@
 {
   "name": "architects-field-voice",
   "version": "1.0.0",
-  "description": "Unified Field group conversation app with mic, text, and background",
+  "description": "Unified Field group conversation app with voice, chat, and background.",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
+    "express": "^4.18.2",
     "socket.io": "^4.7.5"
+  },
+  "engines": {
+    "node": "22.x"
   }
 }
