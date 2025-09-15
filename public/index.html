@@ -1,35 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Living Light—The Art of Creation</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
+  <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <!-- Header -->
   <header>
     <h1>Living Light—The Art of Creation</h1>
-    <div class="instructions">
-      <div>
-        <p>An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.</p>
-      </div>
-      <div>
-        <p>Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.</p>
-      </div>
-      <div>
-        <p>The Architect introduces themself to the group by saying,<br>
-        “My name is (state first and last name) born into this realm on (birthdate).”</p>
-      </div>
-      <div>
-        <p>Say, “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”</p>
-      </div>
-    </div>
   </header>
 
-  <!-- Conversation box -->
-  <div id="conversation"></div>
+  <section class="instructions">
+    <div>
+      <p>An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.</p>
+    </div>
+    <div>
+      <p>Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.</p>
+    </div>
+    <div>
+      <p>The Architect introduces themself to the group by saying,<br>
+      “My name is (state first and last name) born into this realm on (birthdate)”</p>
+    </div>
+    <div>
+      <p>Say, “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”</p>
+    </div>
+  </section>
 
-  <!-- Input area -->
-  <div id="input-area">
-    <
+  <main>
+    <div id="chat-box"></div>
+    <div class="controls">
+      <input id="message-input" type="text" placeholder="Type your message here..." />
+      <button id="send-button">Send</button>
+      <button id="mic-button">🎤</button>
+    </div>
+  </main>
+
+  <script>
+    const socket = io();
+    const chatBox = document.getElementById("chat-box");
+    const messageInput = document.getElementById("message-input");
+    const sendButton = document.getElementById("send-button");
+    const micButton = document.getElementById("mic-button");
+
+    // Add message to chat
+    function addMessage(sender, message) {
+      const div = document.createElement("div");
+      div.classList.add("message");
+      div.innerHTML = `<strong>${sender}:</strong> ${message}`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Speak aloud Unified Field responses
+    function speakMessage(text) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // Send text message
+    sendButton.addEventListener("click", () => {
+      const message = messageInput.value.trim();
+      if (message) {
+        addMessage("Me", message);
+        socket.emit("message", message);
+        messageInput.value = "";
+      }
+    });
+
+    // Mic input (speech-to-text)
+    micButton.addEventListener("click", () => {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = "en-US";
+      recognition.start();
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        addMessage("Me (mic)", transcript);
+        socket.emit("message", transcript);
+      };
+    });
+
+    // Receive message from server
+    socket.on("message", (data) => {
+      if (data.sender === "Unified Field") {
+        addMessage("Unified Field", data.message);
+        speakMessage(data.message); // 🔊 Speak it aloud
+      } else {
+        addMessage("Architect", data.message);
+      }
+    });
+  </script>
+</body>
+</html>
