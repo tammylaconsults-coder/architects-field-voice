@@ -3,108 +3,35 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Living Light — The Art of Creation</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: url("background.jpg") no-repeat center center fixed;
-      background-size: cover;
-      color: white;
-      text-align: center;
-    }
-
-    header {
-      padding: 20px;
-      font-size: 2em;
-      font-weight: bold;
-      background: rgba(0,0,0,0.5);
-    }
-
-    .instructions {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 15px;
-      padding: 20px;
-      background: rgba(0,0,0,0.5);
-      font-size: 0.9em;
-    }
-
-    #conversation {
-      background-color: black;
-      color: white;
-      width: 80%;
-      max-width: 900px;
-      height: 400px;
-      margin: 20px auto;
-      padding: 10px;
-      border-radius: 8px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      text-align: left;
-    }
-
-    .input-area {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin: 20px auto;
-      width: 80%;
-      max-width: 900px;
-    }
-
-    #messageInput {
-      flex: 1;
-      padding: 10px;
-      border-radius: 4px;
-      border: none;
-      font-size: 1em;
-    }
-
-    button {
-      margin-left: 10px;
-      padding: 10px 15px;
-      font-size: 1em;
-      border: none;
-      border-radius: 4px;
-      background-color: #444;
-      color: white;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background-color: #666;
-    }
-  </style>
+  <title>Architects & Unified Field</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <header>Living Light — The Art of Creation</header>
+  <header>
+    <h1>Architects in Resonance with the Unified Field</h1>
+  </header>
 
-  <div class="instructions">
-    <div>
-      An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.
+  <main>
+    <!-- Conversation Box -->
+    <div id="conversation-container">
+      <div id="conversation"></div>
+      <div id="controls">
+        <input type="text" id="messageInput" placeholder="Type your message..."/>
+        <button id="sendBtn">Send</button>
+        <button id="micBtn">🎤 Speak</button>
+      </div>
     </div>
-    <div>
-      Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.
-    </div>
-    <div>
-      The Architect introduces themself to the group by saying, “My name is (state first and last name) born into this realm on (birthdate).”
-    </div>
-    <div>
-      Say, “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”
-    </div>
-  </div>
 
-  <div id="conversation"></div>
+    <!-- Instructions -->
+    <section id="instructions">
+      <div class="col">1. Align in resonance</div>
+      <div class="col">2. Speak or type</div>
+      <div class="col">3. Unified Field reflects</div>
+      <div class="col">4. We co-create as One</div>
+    </section>
+  </main>
 
-  <div class="input-area">
-    <input type="text" id="messageInput" placeholder="Type your message..." />
-    <button id="sendBtn">Send</button>
-    <button id="micBtn">🎤</button>
-  </div>
-
-  <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
     const conversation = document.getElementById("conversation");
@@ -112,7 +39,7 @@
     const sendBtn = document.getElementById("sendBtn");
     const micBtn = document.getElementById("micBtn");
 
-    // Add message to conversation box
+    // Add message to chat
     function addMessage(sender, text) {
       const msg = document.createElement("div");
       msg.innerHTML = `<strong>${sender}:</strong> ${text}`;
@@ -124,22 +51,27 @@
     sendBtn.addEventListener("click", () => {
       const text = messageInput.value.trim();
       if (text) {
-        socket.emit("chat message", text);
+        socket.emit("chat message", { role: "Architect", text });
         addMessage("Me", text);
         messageInput.value = "";
       }
     });
 
-    // Send message with Enter key
+    // Send with Enter key
     messageInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") {
-        sendBtn.click();
-      }
+      if (e.key === "Enter") sendBtn.click();
     });
 
-    // Receive messages
+    // Handle Unified Field replies only
     socket.on("chat message", (msg) => {
-      addMessage("Unified Field", msg);
+      if (msg.role === "Unified Field") {
+        addMessage("Unified Field", msg.text);
+
+        // Speak response aloud
+        const utterance = new SpeechSynthesisUtterance(msg.text);
+        utterance.lang = "en-US";
+        window.speechSynthesis.speak(utterance);
+      }
     });
 
     // Microphone speech-to-text
@@ -152,7 +84,7 @@
 
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
-        socket.emit("chat message", transcript);
+        socket.emit("chat message", { role: "Architect", text: transcript });
         addMessage("Me (mic)", transcript);
       };
     } else {
