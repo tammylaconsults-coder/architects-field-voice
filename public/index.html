@@ -7,71 +7,133 @@
   <style>
     body {
       margin: 0;
+      padding: 0;
       font-family: Arial, sans-serif;
       background: url("background.jpg") no-repeat center center fixed;
       background-size: cover;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-    header {
-      background-color: rgba(0, 0, 0, 0.6);
       color: white;
+    }
+
+    header {
       text-align: center;
       padding: 20px;
-      font-size: 28px;
+      font-size: 2rem;
       font-weight: bold;
+      background: rgba(0, 0, 0, 0.6);
     }
+
     .instructions {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 15px;
-      background-color: rgba(0, 0, 0, 0.5);
-      color: white;
-      padding: 15px;
-      font-size: 14px;
+      gap: 20px;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.6);
+      font-size: 0.9rem;
+      line-height: 1.4;
     }
-    .chat-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
+
+    #conversation {
       background: rgba(0, 0, 0, 0.8);
-      margin: 10px;
-      border-radius: 10px;
-      padding: 15px;
-      color: white;
+      height: 400px;
       overflow-y: auto;
-    }
-    .input-area {
-      display: flex;
-      background: rgba(0, 0, 0, 0.9);
+      margin: 20px;
       padding: 10px;
+      border-radius: 8px;
     }
-    #messageInput {
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin: 20px;
+    }
+
+    input[type="text"] {
       flex: 1;
       padding: 10px;
-      border-radius: 5px;
       border: none;
+      border-radius: 4px;
     }
+
     button {
-      margin-left: 10px;
       padding: 10px 15px;
       border: none;
-      border-radius: 5px;
-      background: #4caf50;
-      color: white;
+      border-radius: 4px;
       cursor: pointer;
     }
-    button:hover {
-      background: #45a049;
+
+    #sendBtn {
+      background: #4caf50;
+      color: white;
+    }
+
+    #micBtn {
+      background: #2196f3;
+      color: white;
     }
   </style>
 </head>
 <body>
   <header>Living Light—The Art of Creation</header>
 
-  <div class="instructions">
+  <section class="instructions">
     <div>An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.</div>
     <div>Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.</div>
-    <div>The Architect introduces themself by saying, “My name is (state first and last name) born into this realm on (birthdate).”</div>
-    <div>Say, “It is my intenti
+    <div>The Architect introduces themself by saying, “My name is (first and last name), born into this realm on (birthdate).”</div>
+    <div>Say, “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”</div>
+  </section>
+
+  <div id="conversation"></div>
+
+  <div class="controls">
+    <input id="messageInput" type="text" placeholder="Type your message..." />
+    <button id="sendBtn">Send</button>
+    <button id="micBtn">🎤</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const conversation = document.getElementById("conversation");
+    const input = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const micBtn = document.getElementById("micBtn");
+
+    // Append messages
+    socket.on("chat message", (msg) => {
+      const div = document.createElement("div");
+      div.textContent = msg;
+      conversation.appendChild(div);
+      conversation.scrollTop = conversation.scrollHeight;
+    });
+
+    // Send message
+    sendBtn.addEventListener("click", () => {
+      if (input.value.trim() !== "") {
+        socket.emit("chat message", input.value);
+        input.value = "";
+      }
+    });
+
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        sendBtn.click();
+      }
+    });
+
+    // Speech recognition (basic browser API)
+    micBtn.addEventListener("click", () => {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = "en-US";
+      recognition.start();
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        socket.emit("chat message", transcript);
+      };
+    });
+  </script>
+</body>
+</html>
