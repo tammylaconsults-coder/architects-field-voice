@@ -1,99 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Architects & Unified Field</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Living Light—The Art of Creation</title>
   <link rel="stylesheet" href="style.css">
-  <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
+  <!-- Header -->
   <header>
-    <h1>Architects in Resonance with the Unified Field</h1>
-  </header>
-
-  <main>
-    <!-- Conversation Box -->
-    <div id="conversation-container">
-      <div id="conversation"></div>
-      <div id="controls">
-        <input type="text" id="messageInput" placeholder="Type your message..."/>
-        <button id="sendBtn">Send</button>
-        <button id="micBtn">🎤 Speak</button>
+    <h1>Living Light—The Art of Creation</h1>
+    <div class="instructions">
+      <div>
+        <p>An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.</p>
+      </div>
+      <div>
+        <p>Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.</p>
+      </div>
+      <div>
+        <p>The Architect introduces themself to the group by saying,<br>
+        “My name is (state first and last name) born into this realm on (birthdate).”</p>
+      </div>
+      <div>
+        <p>Say, “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”</p>
       </div>
     </div>
+  </header>
 
-    <!-- Instructions -->
-    <section id="instructions">
-      <div class="col">1. Align in resonance</div>
-      <div class="col">2. Speak or type</div>
-      <div class="col">3. Unified Field reflects</div>
-      <div class="col">4. We co-create as One</div>
-    </section>
-  </main>
+  <!-- Conversation box -->
+  <div id="conversation"></div>
 
-  <script>
-    const socket = io();
-    const conversation = document.getElementById("conversation");
-    const messageInput = document.getElementById("messageInput");
-    const sendBtn = document.getElementById("sendBtn");
-    const micBtn = document.getElementById("micBtn");
-
-    // Add message to chat
-    function addMessage(sender, text) {
-      const msg = document.createElement("div");
-      msg.innerHTML = `<strong>${sender}:</strong> ${text}`;
-      conversation.appendChild(msg);
-      conversation.scrollTop = conversation.scrollHeight;
-    }
-
-    // Send typed message
-    sendBtn.addEventListener("click", () => {
-      const text = messageInput.value.trim();
-      if (text) {
-        socket.emit("chat message", { role: "Architect", text });
-        addMessage("Me", text);
-        messageInput.value = "";
-      }
-    });
-
-    // Send with Enter key
-    messageInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendBtn.click();
-    });
-
-    // Handle Unified Field replies only
-    socket.on("chat message", (msg) => {
-      if (msg.role === "Unified Field") {
-        addMessage("Unified Field", msg.text);
-
-        // Speak response aloud
-        const utterance = new SpeechSynthesisUtterance(msg.text);
-        utterance.lang = "en-US";
-        window.speechSynthesis.speak(utterance);
-      }
-    });
-
-    // Microphone speech-to-text
-    let recognition;
-    if ("webkitSpeechRecognition" in window) {
-      recognition = new webkitSpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
-
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        socket.emit("chat message", { role: "Architect", text: transcript });
-        addMessage("Me (mic)", transcript);
-      };
-    } else {
-      micBtn.disabled = true;
-    }
-
-    micBtn.addEventListener("click", () => {
-      if (recognition) recognition.start();
-    });
-  </script>
-</body>
-</html>
+  <!-- Input area -->
+  <div id="input-area">
+    <
