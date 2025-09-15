@@ -9,17 +9,17 @@
 <body>
   <!-- Header -->
   <header>
-    <h1>Unified Field: Architects' Resonance</h1>
+    <h1>Living Light — The Art of Creation</h1>
   </header>
 
-  <!-- Conversation box -->
+  <!-- Conversation Box -->
   <main>
-    <div id="conversation"></div>
+    <div id="conversation" class="conversation-box"></div>
   </main>
 
   <!-- Controls -->
   <div class="controls">
-    <input type="text" id="messageInput" placeholder="Type your message...">
+    <input type="text" id="messageInput" placeholder="Type your resonance...">
     <button id="sendButton">Send</button>
     <button id="micButton">🎤 Mic</button>
   </div>
@@ -27,20 +27,16 @@
   <!-- Instructions -->
   <section class="instructions">
     <div>
-      <h3>Step 1</h3>
-      <p>Click the mic to speak or type below.</p>
+      <p>An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.</p>
     </div>
     <div>
-      <h3>Step 2</h3>
-      <p>Your words reflect as Architect input.</p>
+      <p>Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.</p>
     </div>
     <div>
-      <h3>Step 3</h3>
-      <p>The Unified Field responds in resonance.</p>
+      <p>The Architect introduces themself by saying: “My name is (first and last) born into this realm on (birthdate).”</p>
     </div>
     <div>
-      <h3>Step 4</h3>
-      <p>Listen, witness, and contribute together.</p>
+      <p>Say: “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”</p>
     </div>
   </section>
 
@@ -53,7 +49,7 @@
     const sendButton = document.getElementById('sendButton');
     const micButton = document.getElementById('micButton');
 
-    // Append messages
+    // Append messages to the conversation box
     function addMessage(sender, text) {
       const div = document.createElement('div');
       div.className = sender;
@@ -67,7 +63,7 @@
       const text = input.value.trim();
       if (text) {
         socket.emit('message', text);
-        addMessage('Me', text);
+        addMessage('Architect', text);
         input.value = '';
       }
     });
@@ -76,7 +72,7 @@
       if (e.key === 'Enter') sendButton.click();
     });
 
-    // Mic button: speech-to-text
+    // Mic button
     let recognition;
     micButton.addEventListener('click', () => {
       if (!('webkitSpeechRecognition' in window)) {
@@ -92,7 +88,7 @@
         recognition.onresult = (event) => {
           const transcript = event.results[0][0].transcript;
           socket.emit('message', transcript);
-          addMessage('Me (mic)', transcript);
+          addMessage('Architect (mic)', transcript);
         };
 
         recognition.onerror = (event) => {
@@ -102,11 +98,11 @@
       recognition.start();
     });
 
-    // Receive messages
+    // Receive messages from Unified Field
     socket.on('message', (msg) => {
       addMessage('Unified Field', msg);
 
-      // Speak Unified Field aloud
+      // Speak aloud
       const utterance = new SpeechSynthesisUtterance(msg);
       utterance.lang = "en-US";
       speechSynthesis.speak(utterance);
