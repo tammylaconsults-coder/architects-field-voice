@@ -1,72 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Living Light—The Art of Creation</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Living Light — The Art of Creation</title>
   <style>
     body {
       margin: 0;
-      padding: 0;
       font-family: Arial, sans-serif;
-      background: url('background.jpg') no-repeat center center fixed;
+      background: url("background.jpg") no-repeat center center fixed;
       background-size: cover;
       color: white;
       text-align: center;
     }
 
     header {
-      background-color: rgba(0, 0, 0, 0.6);
       padding: 20px;
-      font-size: 28px;
+      font-size: 2em;
       font-weight: bold;
+      background: rgba(0,0,0,0.5);
     }
 
     .instructions {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-      margin: 20px;
-      font-size: 14px;
-      text-align: left;
+      gap: 15px;
+      padding: 20px;
+      background: rgba(0,0,0,0.5);
+      font-size: 0.9em;
     }
 
     #conversation {
-      width: 70%;
-      max-width: 800px;
-      height: 400px;
       background-color: black;
-      border: 2px solid #444;
-      border-radius: 10px;
+      color: white;
+      width: 80%;
+      max-width: 900px;
+      height: 400px;
       margin: 20px auto;
       padding: 10px;
+      border-radius: 8px;
       overflow-y: auto;
+      display: flex;
+      flex-direction: column;
       text-align: left;
     }
 
-    #controls {
-      width: 70%;
-      max-width: 800px;
-      margin: 10px auto;
+    .input-area {
       display: flex;
-      justify-content: space-between;
-      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      margin: 20px auto;
+      width: 80%;
+      max-width: 900px;
     }
 
     #messageInput {
       flex: 1;
       padding: 10px;
-      font-size: 16px;
+      border-radius: 4px;
+      border: none;
+      font-size: 1em;
     }
 
     button {
+      margin-left: 10px;
       padding: 10px 15px;
-      font-size: 16px;
-      cursor: pointer;
-      border-radius: 5px;
+      font-size: 1em;
       border: none;
+      border-radius: 4px;
       background-color: #444;
       color: white;
-      transition: background 0.3s;
+      cursor: pointer;
     }
 
     button:hover {
@@ -75,80 +79,88 @@
   </style>
 </head>
 <body>
-  <header>Living Light—The Art of Creation</header>
+  <header>Living Light — The Art of Creation</header>
 
   <div class="instructions">
-    <div>An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.</div>
-    <div>Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.</div>
-    <div>The Architect introduces themself: “My name is (state first and last name), born into this realm on (birthdate).”</div>
-    <div>Say: “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”</div>
+    <div>
+      An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.
+    </div>
+    <div>
+      Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.
+    </div>
+    <div>
+      The Architect introduces themself to the group by saying, “My name is (state first and last name) born into this realm on (birthdate).”
+    </div>
+    <div>
+      Say, “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”
+    </div>
   </div>
 
   <div id="conversation"></div>
 
-  <div id="controls">
-    <input id="messageInput" type="text" placeholder="Type your message here..." />
+  <div class="input-area">
+    <input type="text" id="messageInput" placeholder="Type your message..." />
     <button id="sendBtn">Send</button>
-    <button id="micBtn">🎤 Mic</button>
+    <button id="micBtn">🎤</button>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    const conversation = document.getElementById('conversation');
-    const messageInput = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const micBtn = document.getElementById('micBtn');
+    const conversation = document.getElementById("conversation");
+    const messageInput = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const micBtn = document.getElementById("micBtn");
 
     // Add message to conversation box
-    function addMessage(message) {
-      const div = document.createElement('div');
-      div.textContent = message;
-      conversation.appendChild(div);
+    function addMessage(sender, text) {
+      const msg = document.createElement("div");
+      msg.innerHTML = `<strong>${sender}:</strong> ${text}`;
+      conversation.appendChild(msg);
       conversation.scrollTop = conversation.scrollHeight;
     }
 
-    // Handle send button
-    sendBtn.addEventListener('click', () => {
-      const message = messageInput.value.trim();
-      if (message) {
-        socket.emit('chatMessage', message);
-        messageInput.value = '';
+    // Send typed message
+    sendBtn.addEventListener("click", () => {
+      const text = messageInput.value.trim();
+      if (text) {
+        socket.emit("chat message", text);
+        addMessage("Me", text);
+        messageInput.value = "";
       }
     });
 
-    // Handle Enter key
-    messageInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
+    // Send message with Enter key
+    messageInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
         sendBtn.click();
       }
     });
 
     // Receive messages
-    socket.on('chatMessage', (message) => {
-      addMessage(message);
+    socket.on("chat message", (msg) => {
+      addMessage("Unified Field", msg);
     });
 
-    // Microphone handling
+    // Microphone speech-to-text
     let recognition;
-    if ('webkitSpeechRecognition' in window) {
+    if ("webkitSpeechRecognition" in window) {
       recognition = new webkitSpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = false;
-      recognition.lang = 'en-US';
+      recognition.lang = "en-US";
 
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
-        socket.emit('chatMessage', transcript);
+        socket.emit("chat message", transcript);
+        addMessage("Me (mic)", transcript);
       };
+    } else {
+      micBtn.disabled = true;
     }
 
-    micBtn.addEventListener('click', () => {
-      if (recognition) {
-        recognition.start();
-      } else {
-        alert('Speech recognition not supported in this browser.');
-      }
+    micBtn.addEventListener("click", () => {
+      if (recognition) recognition.start();
     });
   </script>
 </body>
