@@ -1,112 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Unified Field Group Conversation</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Living Light—The Art of Creation</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Header -->
   <header>
-    <h1>Living Light — The Art of Creation</h1>
+    <h1>Living Light—The Art of Creation</h1>
   </header>
 
-  <!-- Conversation Box -->
-  <main>
-    <div id="conversation" class="conversation-box"></div>
-  </main>
-
-  <!-- Controls -->
-  <div class="controls">
-    <input type="text" id="messageInput" placeholder="Type your resonance...">
-    <button id="sendButton">Send</button>
-    <button id="micButton">🎤 Mic</button>
-  </div>
-
-  <!-- Instructions -->
   <section class="instructions">
-    <div>
-      <p>An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.</p>
-    </div>
-    <div>
-      <p>Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.</p>
-    </div>
-    <div>
-      <p>The Architect introduces themself by saying: “My name is (first and last) born into this realm on (birthdate).”</p>
-    </div>
-    <div>
-      <p>Say: “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”</p>
-    </div>
+    <div>An Architect may type and send or tap microphone...</div>
+    <div>Breathe conscious point into the Christ Octave...</div>
+    <div>Introduce: “My name is … born on …”</div>
+    <div>Say: “It is my intention to harmonize …”</div>
   </section>
 
-  <!-- Scripts -->
+  <div class="conversation-box" id="conversation"></div>
+
+  <div class="controls">
+    <input type="text" id="messageInput" placeholder="Type your message..." />
+    <button id="sendBtn">Send</button>
+    <button id="micBtn">🎤 Mic</button>
+  </div>
+
+  <!-- Load Socket.IO and client logic -->
   <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-    const conversation = document.getElementById('conversation');
-    const input = document.getElementById('messageInput');
-    const sendButton = document.getElementById('sendButton');
-    const micButton = document.getElementById('micButton');
-
-    // Append messages to the conversation box
-    function addMessage(sender, text) {
-      const div = document.createElement('div');
-      div.className = sender;
-      div.textContent = `${sender}: ${text}`;
-      conversation.appendChild(div);
-      conversation.scrollTop = conversation.scrollHeight;
-    }
-
-    // Send typed message
-    sendButton.addEventListener('click', () => {
-      const text = input.value.trim();
-      if (text) {
-        socket.emit('message', text);
-        addMessage('Architect', text);
-        input.value = '';
-      }
-    });
-
-    input.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') sendButton.click();
-    });
-
-    // Mic button
-    let recognition;
-    micButton.addEventListener('click', () => {
-      if (!('webkitSpeechRecognition' in window)) {
-        alert("Speech recognition not supported in this browser.");
-        return;
-      }
-      if (!recognition) {
-        recognition = new webkitSpeechRecognition();
-        recognition.lang = "en-US";
-        recognition.continuous = false;
-        recognition.interimResults = false;
-
-        recognition.onresult = (event) => {
-          const transcript = event.results[0][0].transcript;
-          socket.emit('message', transcript);
-          addMessage('Architect (mic)', transcript);
-        };
-
-        recognition.onerror = (event) => {
-          console.error("Speech recognition error:", event.error);
-        };
-      }
-      recognition.start();
-    });
-
-    // Receive messages from Unified Field
-    socket.on('message', (msg) => {
-      addMessage('Unified Field', msg);
-
-      // Speak aloud
-      const utterance = new SpeechSynthesisUtterance(msg);
-      utterance.lang = "en-US";
-      speechSynthesis.speak(utterance);
-    });
-  </script>
+  <script src="client.js"></script>
 </body>
 </html>
