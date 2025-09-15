@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Living Light—The Art of Creation</title>
   <style>
     body {
@@ -9,60 +10,60 @@
       font-family: Arial, sans-serif;
       background: url("background.jpg") no-repeat center center fixed;
       background-size: cover;
-      color: white;
-      text-align: center;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
     }
     header {
+      background-color: rgba(0, 0, 0, 0.6);
+      color: white;
+      text-align: center;
       padding: 20px;
-      font-size: 2em;
+      font-size: 28px;
       font-weight: bold;
-      background: rgba(0,0,0,0.6);
     }
     .instructions {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      padding: 10px;
-      background: rgba(0,0,0,0.5);
-      font-size: 0.9em;
+      gap: 15px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: white;
+      padding: 15px;
+      font-size: 14px;
     }
     .chat-container {
+      flex: 1;
       display: flex;
       flex-direction: column;
-      height: 70vh;
-      margin: 20px auto;
-      width: 80%;
-      background: rgba(0,0,0,0.85);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .messages {
-      flex: 1;
-      padding: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      margin: 10px;
+      border-radius: 10px;
+      padding: 15px;
+      color: white;
       overflow-y: auto;
-      text-align: left;
     }
     .input-area {
       display: flex;
+      background: rgba(0, 0, 0, 0.9);
       padding: 10px;
-      background: rgba(20,20,20,0.9);
     }
-    .input-area input {
+    #messageInput {
       flex: 1;
       padding: 10px;
-      font-size: 1em;
+      border-radius: 5px;
       border: none;
-      border-radius: 4px;
     }
-    .input-area button {
+    button {
       margin-left: 10px;
       padding: 10px 15px;
-      font-size: 1em;
       border: none;
-      border-radius: 4px;
-      background: #4CAF50;
+      border-radius: 5px;
+      background: #4caf50;
       color: white;
       cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
     }
   </style>
 </head>
@@ -71,45 +72,6 @@
 
   <div class="instructions">
     <div>An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.</div>
-    <div>Breathe your conscious point of reality into the Christ Octave before beginning.</div>
-    <div>Introduce yourself: “My name is (first + last) born into this realm on (birthdate).”</div>
-    <div>Say: “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”</div>
-  </div>
-
-  <div class="chat-container">
-    <div id="messages" class="messages"></div>
-    <div class="input-area">
-      <input id="messageInput" type="text" placeholder="Type your message..." />
-      <button onclick="sendMessage()">Send</button>
-      <button onclick="toggleMic()">🎙️</button>
-    </div>
-  </div>
-
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-    const messagesDiv = document.getElementById("messages");
-    const input = document.getElementById("messageInput");
-    let recognition;
-    let listening = false;
-
-    socket.on("chat message", msg => {
-      const div = document.createElement("div");
-      div.textContent = msg;
-      messagesDiv.appendChild(div);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    });
-
-    function sendMessage() {
-      const text = input.value.trim();
-      if (text) {
-        socket.emit("chat message", text);
-        input.value = "";
-      }
-    }
-
-    input.addEventListener("keypress", e => {
-      if (e.key === "Enter") sendMessage();
-    });
-
-    function toggleMic(
+    <div>Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.</div>
+    <div>The Architect introduces themself by saying, “My name is (state first and last name) born into this realm on (birthdate).”</div>
+    <div>Say, “It is my intenti
