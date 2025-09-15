@@ -1,73 +1,84 @@
-body {
+/* General reset */
+* {
   margin: 0;
-  font-family: Arial, sans-serif;
-  background: url("background.jpg") no-repeat center center fixed;
-  background-size: cover;
-  color: white;
-  text-align: center;
+  padding: 0;
+  box-sizing: border-box;
 }
 
+body {
+  font-family: Arial, sans-serif;
+  background: url('background.jpg') no-repeat center center fixed;
+  background-size: cover;
+  color: #fff;
+  text-align: center;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Header */
 header {
   background: rgba(0, 0, 0, 0.7);
   padding: 20px;
-  font-size: 1.5em;
+  width: 100%;
 }
 
-#conversation-container {
-  background: rgba(0, 0, 0, 0.9);
-  width: 60%;
+header h1 {
+  font-size: 2rem;
+  margin-bottom: 15px;
+}
+
+.instructions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+/* Conversation box */
+#conversation {
+  background: rgba(0, 0, 0, 0.85);
+  border: 2px solid #fff;
+  border-radius: 10px;
+  width: 90%;
   max-width: 900px;
+  height: 400px; /* smaller than before */
   margin: 20px auto;
   padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.7);
-}
-
-#conversation {
-  height: 400px;
   overflow-y: auto;
   text-align: left;
-  padding: 10px;
-  border-bottom: 1px solid #444;
+  font-size: 1rem;
 }
 
-#controls {
-  margin-top: 10px;
+/* Input area */
+#input-area {
   display: flex;
   justify-content: center;
   gap: 10px;
+  margin: 15px auto;
 }
 
-#messageInput {
+#message {
   flex: 1;
-  padding: 8px;
-  border-radius: 6px;
+  padding: 10px;
+  border-radius: 5px;
   border: none;
+  font-size: 1rem;
 }
 
 button {
-  padding: 8px 12px;
+  padding: 10px 15px;
   border: none;
-  border-radius: 6px;
+  border-radius: 5px;
   background: #444;
-  color: white;
+  color: #fff;
   cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s ease-in-out;
 }
 
 button:hover {
   background: #666;
-}
-
-#instructions {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  margin: 20px auto;
-  width: 80%;
-  gap: 15px;
-}
-
-#instructions .col {
-  background: rgba(0,0,0,0.7);
-  padding: 10px;
-  border-radius: 8px;
 }
