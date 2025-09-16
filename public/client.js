@@ -1,4 +1,4 @@
-// public/client.js
+// Connect to server
 const socket = io();
 
 const conversation = document.getElementById("conversation");
@@ -17,7 +17,7 @@ function addMessage(sender, text) {
   conversation.scrollTop = conversation.scrollHeight;
 }
 
-// Handle sending typed message
+// Send typed message
 sendBtn.addEventListener("click", () => {
   const text = messageInput.value.trim();
   if (text) {
@@ -34,7 +34,7 @@ messageInput.addEventListener("keydown", (e) => {
   }
 });
 
-// Handle microphone input (speech-to-text)
+// Handle microphone input
 micBtn.addEventListener("click", () => {
   if (!recognition) {
     recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
@@ -60,7 +60,7 @@ micBtn.addEventListener("click", () => {
   }
 });
 
-// Listen for Unified Field messages
+// Listen for Unified Field replies
 socket.on("reply", (msg) => {
   addMessage("Unified Field", msg);
 
