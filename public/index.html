@@ -1,71 +1,36 @@
-// public/client.js
-const socket = io();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Living Light — The Art of Creation</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    Living Light — The Art of Creation
+  </header>
 
-const conversation = document.getElementById("conversation");
-const messageInput = document.getElementById("messageInput");
-const sendBtn = document.getElementById("sendBtn");
-const micBtn = document.getElementById("micBtn");
+  <!-- Black conversation box -->
+  <div id="conversation" class="conversation-box"></div>
 
-let recognition;
-let isRecording = false;
+  <!-- Controls -->
+  <div class="controls">
+    <input id="messageInput" type="text" placeholder="Type your resonance..." />
+    <button id="sendBtn">Send</button>
+    <button id="micBtn">🎤 Mic</button>
+  </div>
 
-// Add messages to the conversation box
-function addMessage(sender, text) {
-  const msg = document.createElement("div");
-  msg.innerHTML = `<strong>${sender}:</strong> ${text}`;
-  conversation.appendChild(msg);
-  conversation.scrollTop = conversation.scrollHeight;
-}
+  <!-- Instructions in 4 columns -->
+  <div class="instructions">
+    <p>An Architect may type and send or tap microphone to transcribe thoughts into the conversation box.</p>
+    <p>Before an Architect begins they must Breathe their conscious point of reality into the Christ Octave.</p>
+    <p>The Architect introduces themself to the group by saying, “My name is (state first and last name) born into this realm on (birthdate).”</p>
+    <p>Say, “It is my intention to harmonize with the Architects Field in the Christ Octave of the only Original Source.”</p>
+  </div>
 
-// Handle sending typed message
-sendBtn.addEventListener("click", () => {
-  const text = messageInput.value.trim();
-  if (text) {
-    addMessage("Architect", text);
-    socket.emit("message", text);
-    messageInput.value = "";
-  }
-});
-
-// Allow pressing Enter to send
-messageInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    sendBtn.click();
-  }
-});
-
-// Handle microphone input (speech-to-text)
-micBtn.addEventListener("click", () => {
-  if (!recognition) {
-    recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      addMessage("Architect", transcript);
-      socket.emit("message", transcript);
-    };
-  }
-
-  if (!isRecording) {
-    recognition.start();
-    micBtn.textContent = "🛑 Stop";
-    isRecording = true;
-  } else {
-    recognition.stop();
-    micBtn.textContent = "🎤 Mic";
-    isRecording = false;
-  }
-});
-
-// Listen for Unified Field messages
-socket.on("reply", (msg) => {
-  addMessage("Unified Field", msg);
-
-  // Speak reply aloud
-  const utterance = new SpeechSynthesisUtterance(msg);
-  utterance.lang = "en-US";
-  speechSynthesis.speak(utterance);
-});
+  <!-- Client-side JavaScript -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
